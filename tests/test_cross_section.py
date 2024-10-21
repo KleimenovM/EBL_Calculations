@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from cross_section import CrossSection
+from src.cross_section import CrossSection
 
 
 def test_cross_section():

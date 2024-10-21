@@ -1,8 +1,10 @@
 import numpy as np
+from numba.experimental import jitclass
 
-from constants import SIGMA_TH, M_E
+from config.constants import SIGMA_TH, M_E2
 
 
+@jitclass
 class CrossSection:
     """
     A class responsible for the first-order appoximation of 2gamma->e+e- cross-section
@@ -21,19 +23,29 @@ class CrossSection:
         :param mu: [DL], cos(theta)
         :return: [DL], reaction parameter 'beta'
         """
-        beta_eq = 1 - 2 * M_E ** 2 / (e0 * e) * 1 / (1 + z) * 1 / (1 - mu)
-        if_beta_eq = abs(beta_eq - 0.5) < 0.5  # choose beta positive
-        return np.sqrt(beta_eq * if_beta_eq)
+        b = 1.0 - 2.0 * M_E2 / (e0 * e) / ((1 + z) * (1 - mu))
+        return np.sqrt((b + np.abs(b)) / 2.0)
 
     @staticmethod
-    def sigma_beta(beta: np.ndarray) -> np.ndarray:
+    def sigma_beta(beta: np.ndarray):
         """
-        Get the gamma + gamma -> e+ e- cross-section (rest frame)
+        Get the gamma + gamma -> e+ e- cross-section (rest frame) from beta-parameter
         :param beta: [DL], energy parameter
         :return: [m2], cross-section
         """
         multiplicator = -4 * beta + 2 * beta ** 3 + (3 - beta ** 4) * np.log((1 + beta) / (1 - beta))
         return 3 / 16 * SIGMA_TH * (1 - beta ** 2) * multiplicator
+
+    def cs(self, e0, e, z, mu):
+        """
+        Get the gamma + gamma -> e+ e- cross-section (rest frame)
+        :param e0: [eV], first incident photon energy
+        :param e: [eV], second incident photon energy
+        :param z: [DL], redshift
+        :param mu: [DL], cos(theta)
+        :return: [m2], cross-section
+        """
+        return self.sigma_beta(self.beta(e0, e, z, mu))
 
 
 if __name__ == '__main__':

@@ -1,7 +1,10 @@
+import os
 import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
+
+from config.settings import DATA_SL_DIR
 
 
 def ebl_intensity_data_import(if_log: bool = False):
@@ -9,7 +12,9 @@ def ebl_intensity_data_import(if_log: bool = False):
                  2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6, 5.8, 6.]  # [DL]
     n = len(redshifts)
 
-    with open('Saldana-Lopez/ebl_saldana21_comoving.txt', 'r') as open_file:
+    path = os.path.join(DATA_SL_DIR, 'ebl_saldana21_comoving.txt')
+
+    with open(path, 'r') as open_file:
         all_data = open_file.readlines()
 
         m = len(all_data) - 7
@@ -68,7 +73,9 @@ def save_interpolator(x: np.ndarray[float], y: np.ndarray[float], interpolator: 
                       x_name: str = "redshift", y_name: str = "wavelength", interp_name="interp"):
     interp_dict = {x_name: x, y_name: y, interp_name: interpolator}
 
-    with open("Saldana-Lopez/interpolated_intensity_SL.pck", "wb") as pickle_file:
+    path = os.path.join(DATA_SL_DIR, "interpolated_intensity_SL.pck")
+
+    with open(path, "wb") as pickle_file:
         pickle.dump(interp_dict, pickle_file)
 
     return

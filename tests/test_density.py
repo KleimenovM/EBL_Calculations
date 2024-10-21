@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ebl_photon_density import EBL
+from src.ebl_photon_density import EBLSimple
 
 
-def test_intensity():
+def test_intensity(ebl, z0):
     wvl = 10**np.linspace(-1.5, 2.7, 1000)  # [mkm]
-    ebl = EBL()
-    plt.plot(wvl, ebl.intensity(wvl))
+    intensity = ebl.intensity(wvl, z=z0)
+    plt.plot(wvl, intensity)
     plt.xscale('log')
     plt.yscale('log')
 
@@ -16,10 +16,9 @@ def test_intensity():
     return
 
 
-def test_intensity2():
+def test_intensity2(ebl, z0):
     energy = 10**np.linspace(-3, 1, 1000)  # [eV]
-    ebl = EBL()
-    plt.plot(energy, ebl.intensity(ebl.e_to_wvl(energy)))
+    plt.plot(energy, ebl.intensity(ebl.e_to_wvl(energy), z=z0))
     plt.xscale('log')
     plt.yscale('log')
     plt.xlabel(r"$\epsilon,~eV$")
@@ -27,13 +26,11 @@ def test_intensity2():
     return
 
 
-def test_density():
-    lg_e0 = np.linspace(-7, 2, 1000)
+def test_density(ebl, z0):
+    lg_e0 = np.linspace(-3.5, 2, 1000)
     e0 = 10 ** lg_e0  # [eV]
 
-    ebl = EBL()
-
-    plt.plot(e0, ebl.density_e(e=e0, z=1.0))
+    plt.plot(e0, ebl.density_e(e=e0, z=z0))
     plt.xscale('log')
     plt.yscale('log')
     plt.xlabel(r"$\epsilon,~eV$")
@@ -41,16 +38,24 @@ def test_density():
     return
 
 
-if __name__ == '__main__':
+def main():
     plt.figure(figsize=(13, 6))
     plt.subplot(1, 3, 1)
-    test_intensity()
+
+    ebl = EBLSimple()
+    z0 = np.array([0])
+    test_intensity(ebl, z0)
 
     plt.subplot(1, 3, 2)
-    test_intensity2()
+    test_intensity2(ebl, z0)
 
     plt.subplot(1, 3, 3)
-    test_density()
+    test_density(ebl, z0)
 
     plt.tight_layout()
     plt.show()
+    return
+
+
+if __name__ == '__main__':
+    main()
