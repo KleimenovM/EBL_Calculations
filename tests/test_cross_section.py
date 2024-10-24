@@ -1,12 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.cross_section import CrossSection
+from src.cross_section import beta, gamma_gamma_cross_section
 
 
 def test_cross_section():
     e = 1.0  # [eV], optical
-    cs = CrossSection()
     n = 10000
 
     e0_line = 10**np.linspace(11.45, 13, 5)  # [eV] (0.3 - 10 TeV, incident)
@@ -19,8 +18,7 @@ def test_cross_section():
     plt.figure(figsize=(15, 10))
     for i, z0 in enumerate([0, 0.1, 0.5]):
         for j, e0 in enumerate(e0_line):
-            beta = cs.beta(e0, e, z0, mu_line)
-            sigmas = cs.sigma_beta(beta)
+            sigmas = gamma_gamma_cross_section(e0, e, z0, mu_line)
             plt.subplot(2, 3, i + 1, projection='polar')
             plt.title(f"z0 = {z0}, pure")
             plt.polar(theta_line, sigmas, color=colors[j], label=f"{round(e0 * 1e-12, 1)} TeV")
