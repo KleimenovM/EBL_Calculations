@@ -15,7 +15,6 @@ from gammapy.modeling.models import (
 )
 
 from config.settings import PICS_DIR, DATA_SL_DIR
-from src.cross_section import gamma_gamma_cross_section
 from src.ebl_photon_density import EBLSaldanaLopez, EBLSimple
 from src.optical_depth import OpticalDepth
 
@@ -38,14 +37,14 @@ def test_optical_depth():
     e0_line = 10**lg_e0_line  # [eV]
 
     n_z = 100
-    n_e = 100
+    n_e = 200
     n_mu = 100
 
-    ebl_SL = EBLSaldanaLopez()
-    ebl_S = EBLSimple()
+    ebl_SL = EBLSaldanaLopez(cmb_on=True)
+    ebl_S = EBLSimple(cmb_on=True)
 
-    od_SL = OpticalDepth(ebl_SL)
-    od_S = OpticalDepth(ebl_S)
+    od_SL = OpticalDepth(ebl_SL, simple=True)
+    od_S = OpticalDepth(ebl_S, simple=True)
 
     _, _, tau_interpolator = load_pck(DATA_SL_DIR, "interpolated_optical_depth_SL.pck")
 
@@ -89,8 +88,8 @@ def test_optical_depth():
     plt.grid(linestyle='dashed', color='lightgray')
     plt.tight_layout()
 
-    plt.savefig(os.path.join(PICS_DIR, "optical_depth2.png"))
-    plt.savefig(os.path.join(PICS_DIR, "optical_depth2.pdf"))
+    # plt.savefig(os.path.join(PICS_DIR, "optical_depth2.png"))
+    # plt.savefig(os.path.join(PICS_DIR, "optical_depth2.pdf"))
     plt.show()
     return
 
