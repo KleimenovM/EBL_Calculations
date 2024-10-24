@@ -71,7 +71,7 @@ class EBL:
         :param z: [DL], redshift
         :return: [m-3 eV-1], spectral number density
         """
-        return 4 * np.pi / C * self.intensity(self.e_to_wvl(e), z) * e**(-2) * EV_J
+        return 4 * np.pi / C * self.intensity(self.e_to_wvl(e), z) * e**(-2) * EV_J * (1+z)**3
 
 
 class CMBOnly(EBL):
