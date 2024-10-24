@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.ebl_photon_density import EBLSimple
+from src.ebl_photon_density import EBLSimple, EBLSaldanaLopez
 
 
 def test_intensity(ebl, z0):
-    wvl = 10**np.linspace(-1.5, 2.7, 1000)  # [mkm]
+    wvl = 10**np.linspace(-1, 3, 1000)  # [mkm]
     intensity = ebl.intensity(wvl, z=z0)
-    plt.plot(wvl, intensity)
+    plt.plot(wvl, intensity * 1e9)
     plt.xscale('log')
     plt.yscale('log')
 
@@ -39,18 +39,27 @@ def test_density(ebl, z0):
 
 
 def main():
+    ebl1 = EBLSimple()
+    ebl2 = EBLSaldanaLopez()
+    z0 = np.array([3])
+
     plt.figure(figsize=(13, 6))
     plt.subplot(1, 3, 1)
-
-    ebl = EBLSimple()
-    z0 = np.array([0])
-    test_intensity(ebl, z0)
+    test_intensity(ebl1, z0)
+    test_intensity(ebl2, z0)
+    plt.xlim(1e-1, 1e3)
+    plt.ylim(1e-2, 1e2)
+    plt.grid(linestyle='dashed', color='lightgray')
 
     plt.subplot(1, 3, 2)
-    test_intensity2(ebl, z0)
+    test_intensity2(ebl1, z0)
+    test_intensity2(ebl2, z0)
+    plt.ylim(1e-10, 1e-7)
 
     plt.subplot(1, 3, 3)
-    test_density(ebl, z0)
+    test_density(ebl1, z0)
+    test_density(ebl2, z0)
+    plt.ylim(1e-5)
 
     plt.tight_layout()
     plt.show()
