@@ -7,41 +7,73 @@ from scipy.interpolate import RegularGridInterpolator
 from config.settings import DATA_SL_DIR
 
 
-def ebl_intensity_data_import(if_log: bool = False):
+def log10_eps(x):
+    return np.log10(x + np.finfo(float).tiny)
+
+
+def ebl_intensity_data_import(folder, filename,
+                              if_log_data: bool = False, if_log_wvl: bool = True):
     redshifts = [0., 0.01, 0.03, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2,
                  2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6, 5.8, 6.]  # [DL]
     n = len(redshifts)
 
-    path = os.path.join(DATA_SL_DIR, 'ebl_saldana21_comoving.txt')
+    path = os.path.join(folder, filename)
 
     with open(path, 'r') as open_file:
         all_data = open_file.readlines()
 
-        m = len(all_data) - 7
+    m = len(all_data) - 7
 
-        wavelength = np.zeros(m)  # [mkm]
-        intensity = np.zeros([n, m])  # [nW m-2 sr-1], specific intensity
+    wavelength = np.zeros(m)  # [mkm]
+    intensity = np.zeros([n, m])  # [nW m-2 sr-1], specific intensity
 
-        for i in range(m):
-            line_i = all_data[i + 7].split(' ')
+    for i in range(m):
+        line_i = all_data[i + 7].split(' ')
 
-            counter = 0
-            for j, elem in enumerate(line_i):
-                if elem == '':
-                    continue
-                if counter == 0:
-                    wavelength[i] = float(elem)
-                    counter += 1
-                else:
-                    intensity[counter - 1, i] = float(elem)
-                    counter += 1
+        counter = 0
+        for j, elem in enumerate(line_i):
+            if elem == '':
+                continue
+            if counter == 0:
+                wavelength[i] = float(elem)
+                counter += 1
+            else:
+                intensity[counter - 1, i] = float(elem)
+                counter += 1
 
-    if if_log:
-        data = np.log10(intensity + 1e-30)
+    if if_log_data:
+        data = log10_eps(intensity)
     else:
         data = intensity
 
-    return redshifts, wavelength, data
+    if if_log_wvl:
+        wvl = log10_eps(wavelength)
+    else:
+        wvl = wavelength
+
+    return redshifts, wvl, data
+
+
+def interpolate(x, y, z, if_log_z: bool = False, bounds_error=False):
+    if if_log_z:
+        z1 = log10_eps(z)
+    else:
+        z1 = z
+
+    return RegularGridInterpolator((x, y), z1, bounds_error=bounds_error, fill_value=None)
+
+
+def save_interpolator(x: np.ndarray[float], y: np.ndarray[float], interpolator: RegularGridInterpolator,
+                      folder: str, filename: str,
+                      x_name: str = "redshift", y_name: str = "wavelength", interp_name="interp"):
+    interp_dict = {x_name: x, y_name: y, interp_name: interpolator}
+
+    path = os.path.join(folder, filename)
+
+    with open(path, "wb") as pickle_file:
+        pickle.dump(interp_dict, pickle_file)
+
+    return
 
 
 def plot_interpolated_values(x: np.ndarray[float], y: np.ndarray[float], interp: RegularGridInterpolator,
@@ -51,6 +83,7 @@ def plot_interpolated_values(x: np.ndarray[float], y: np.ndarray[float], interp:
 
     if delog:
         data = 10 ** data
+        y = 10 ** y
 
     plt.pcolormesh(y, x, data)
     plt.colorbar()
@@ -69,27 +102,18 @@ def plot_SL_data(x: np.ndarray[float], y: np.ndarray[float], data: np.ndarray[fl
     return
 
 
-def save_interpolator(x: np.ndarray[float], y: np.ndarray[float], interpolator: RegularGridInterpolator,
-                      x_name: str = "redshift", y_name: str = "wavelength", interp_name="interp"):
-    interp_dict = {x_name: x, y_name: y, interp_name: interpolator}
-
-    path = os.path.join(DATA_SL_DIR, "interpolated_intensity_SL.pck")
-
-    with open(path, "wb") as pickle_file:
-        pickle.dump(interp_dict, pickle_file)
-
-    return
-
-
-def plot_and_compare(rsh, wvl, inten, f, if_log):
+def plot_and_compare(rsh, lg_wvl, inten, f, if_log):
+    wvl = 10 ** lg_wvl
     new_rsh = np.linspace(rsh[0], rsh[-1] + 1, 50)
-    new_wvl = np.logspace(np.log10(wvl[0]) - 1, np.log10(wvl[-1]) + 1, 100, base=10)
+    new_lg_wvl = np.linspace(lg_wvl[0] - 1, lg_wvl[-1] + 1, 100)
 
     plt.figure(figsize=(10, 6))
+
     plt.subplot(1, 2, 1)
     plot_SL_data(rsh, wvl, inten, delog=if_log)
+
     plt.subplot(1, 2, 2)
-    plot_interpolated_values(new_rsh, new_wvl, f, delog=if_log)
+    plot_interpolated_values(new_rsh, new_lg_wvl, f, delog=if_log)
 
     plt.tight_layout()
     plt.show()
@@ -97,15 +121,24 @@ def plot_and_compare(rsh, wvl, inten, f, if_log):
 
 
 def main():
-    if_log = True
+    redshift, lg_wvl, inten = ebl_intensity_data_import(folder=DATA_SL_DIR, filename='ebl_saldana21_comoving.txt',
+                                                        if_log_data=False, if_log_wvl=True)
 
-    rsh, wvl, inten = ebl_intensity_data_import(if_log=if_log)
-    f = RegularGridInterpolator((rsh, wvl), inten,
-                                bounds_error=False, fill_value=None)
+    _, _, delta_inten = ebl_intensity_data_import(folder=DATA_SL_DIR, filename='eblerr_saldana21_comoving.txt',
+                                                  if_log_data=False, if_log_wvl=True)
 
-    save_interpolator(rsh, wvl, f)
+    f = interpolate(x=redshift, y=lg_wvl, z=inten, if_log_z=True)
+    f_plus = interpolate(x=redshift, y=lg_wvl, z=inten + delta_inten, if_log_z=True)
+    f_minus = interpolate(x=redshift, y=lg_wvl, z=inten - delta_inten, if_log_z=True)
 
-    plot_and_compare(rsh, wvl, inten, f, if_log)
+    save_interpolator(x=redshift, y=lg_wvl, interpolator=f,
+                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL.pck")
+    save_interpolator(x=redshift, y=lg_wvl, interpolator=f_plus,
+                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL_upper.pck")
+    save_interpolator(x=redshift, y=lg_wvl, interpolator=f_minus,
+                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL_lower.pck")
+
+    plot_and_compare(redshift, lg_wvl, log10_eps(inten), f_plus, True)
 
     return
 
