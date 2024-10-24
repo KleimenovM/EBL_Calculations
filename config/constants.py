@@ -17,3 +17,6 @@ OMEGA_M: float = 0.3  # [DL], matter density
 
 PC_M: float = 3.0857e16  # [m/Pc], Parsec in meters, Sourse: https://en.wikipedia.org/wiki/Parsec
 MPC_M: float = PC_M * 1e6  # [m/MPc], 1 Mpc in m
+
+K_B_J: float = 1.380649e-23  # [J K-1], Boltzmann constant, Source: https://en.wikipedia.org/wiki/Boltzmann_constant
+K_B_EV: float = K_B_J * EV_J
