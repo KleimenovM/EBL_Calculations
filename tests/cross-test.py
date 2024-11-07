@@ -88,8 +88,8 @@ def test_optical_depth():
     plt.grid(linestyle='dashed', color='lightgray')
     plt.tight_layout()
 
-    # plt.savefig(os.path.join(PICS_DIR, "optical_depth2.png"))
-    # plt.savefig(os.path.join(PICS_DIR, "optical_depth2.pdf"))
+    plt.savefig(os.path.join(PICS_DIR, "optical_depth2.png"))
+    plt.savefig(os.path.join(PICS_DIR, "optical_depth2.pdf"))
     plt.show()
     return
 
