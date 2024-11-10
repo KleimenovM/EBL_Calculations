@@ -5,6 +5,7 @@ import numpy as np
 
 from config.settings import DATA_SL_DIR
 from config.constants import C, H_J, H_EV, EV_J, K_B_EV
+from src.functional_basis import FunctionalBasis
 
 
 class CMB:
@@ -80,6 +81,9 @@ class CMBOnly(EBL):
 
 
 class EBLSimple(EBL):
+    """
+    A simple EBL intensity parametrization as a sum of two equally high gaussians in IR and optical light
+    """
     def __init__(self, f_evol: float = None, cmb_on: bool = False):
         super().__init__(cmb_on)
         self.lg_wvl1: float = 0.  # [DL], 1 mkm, close IR
@@ -98,6 +102,10 @@ class EBLSimple(EBL):
 
 
 class EBLSaldanaLopez(EBL):
+    """
+    An EBL parametrization from the work of A.Saldana-Lopez et al. (2021)
+    https://doi.org/10.1093/mnras/stab2393
+    """
     def __init__(self, cmb_on: bool = False):
         super().__init__(cmb_on)
         self.file_pck = os.path.join(DATA_SL_DIR, "interpolated_intensity_SL.pck")
@@ -114,6 +122,26 @@ class EBLSaldanaLopez(EBL):
 
     def no_cmb_intensity(self, wvl, z):
         return 10 ** (self.interpolator((z, np.log10(wvl))) - 9)  # [nW -> W]
+
+
+class EBLBasis(EBL):
+    """
+    An EBL parametrization by as a linear combination of basis functions
+    Based on DOI: 10.1088/0004-637X/812/1/60
+    """
+    def __init__(self, basis: FunctionalBasis, evolution_function, n: int = 5, cmb_on: bool = False):
+        super().__init__(cmb_on)
+        self.basis = basis
+        self.dim = basis.n
+        self.evolution_function = evolution_function
+        v = np.zeros(self.dim)
+        v[0] = 1.0
+        self.vector = v
+
+    def no_cmb_intensity(self, wvl, z):
+        lg_wvl = np.log10(wvl)
+        total_intensities = self.basis.get_distribution_list(lg_wvl=lg_wvl)
+        return np.dot(self.vector,  total_intensities) * self.evolution_function(z)
 
 
 if __name__ == '__main__':
