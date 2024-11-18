@@ -19,12 +19,14 @@ class FunctionalBasis:
 
         self.fb = []
 
-    def get_lg_wvl_range(self, m: int):
+    def get_lg_wvl_range(self, m: int = None):
         """
         Get a range of lg_wvl
         :param m: number of points in the desired lg_wvl split
         :return: <np.ndarray> [DL] - a homogenous range of lg_wvl
         """
+        if m is None:
+            m = self.m
         return np.linspace(self.low_lg_wvl, self.high_lg_wvl, m)
 
     def set_function_list(self):
@@ -61,7 +63,7 @@ class FunctionalBasis:
         elif lg_wvl.size != m:
             raise ValueError("Choose either lg_wvl or m!")
 
-        result = np.zeros((self.n, m))
+        result = np.zeros([self.n, m])
 
         for i in range(self.n):
             result[i, :] = self.fb[i](lg_wvl)
@@ -77,13 +79,14 @@ class BasisFunction:
         return self.f(lg_wvl, self.i)
 
 
-class ParabolicBasis(FunctionalBasis):
+class ExpParabolicBasis(FunctionalBasis):
     def __init__(self, n: int, m: int):
         super().__init__(n, m)
         edges = np.linspace(self.low_lg_wvl, self.high_lg_wvl, self.n + 1)  # the dots in .|.|.|.|.
         self.peaks = (edges[:-1] + edges[1:]) / 2.0  # the columns in .|.|.|.|.
+        self.h = edges[1] - edges[0]
         self.delta = self.peaks[1] - self.peaks[0]  # distance between the peaks (mutual for all the peaks)
-        self.sigma2 = self.delta ** 2 / (8 * np.log(2))  # hwfh
+        self.sigma2 = self.delta ** 2 / (8 * np.log(2))  # hwfh^2
         self.set_function_list()
 
     def an_exponentiated_parabola(self, lg_wvl, i):
@@ -92,6 +95,40 @@ class ParabolicBasis(FunctionalBasis):
     def set_function_list(self):
         for i in range(self.n):
             bf = BasisFunction(i=i, f=self.an_exponentiated_parabola)
-            print(self.peaks[i])
             self.fb.append(bf)
         pass
+
+
+class BSplineBasis(FunctionalBasis):
+    def __init__(self, n: int, m: int):
+        super().__init__(n, m)
+        self.knots = np.linspace(self.low_lg_wvl, self.high_lg_wvl, self.n + 2)  # the knots of the grid
+        self.h = self.knots[1] - self.knots[0]  # distance between the knots
+        self.set_function_list()
+
+    def box(self, lg_wvl, i):
+        return np.heaviside(lg_wvl - self.knots[i], 1) * np.heaviside(self.knots[i+1] - lg_wvl, 0)
+
+    def b_spline_basis_function(self, lg_wvl, i):
+        i += 1
+        u = (lg_wvl - self.knots[i]) / self.h
+
+        boxes = np.array([self.box(lg_wvl + 2 * self.h, i),
+                          self.box(lg_wvl + 1 * self.h, i),
+                          self.box(lg_wvl + 0 * self.h, i),
+                          self.box(lg_wvl - 1 * self.h, i)])
+
+        matrix = np.array([[8,  12,  6,  1],
+                           [4,   0, -6, -3],
+                           [4,   0, -6,  3],
+                           [8, -12,  6,  -1]])
+
+        vector = np.array([u**0, u, u**2, u**3])
+
+        return 1 / 4 * np.sum(matrix @ vector * boxes, axis=0)
+
+    def set_function_list(self):
+        for i in range(self.n):
+            bf = BasisFunction(i=i, f=self.b_spline_basis_function)
+            self.fb.append(bf)
+        return

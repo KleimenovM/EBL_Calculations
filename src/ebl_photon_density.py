@@ -127,7 +127,7 @@ class EBLSaldanaLopez(EBL):
 class EBLBasis(EBL):
     """
     An EBL parametrization by as a linear combination of basis functions
-    Based on DOI: 10.1088/0004-637X/812/1/60
+    Based on https://doi.org/10.1088/0004-637X/812/1/60
     """
     def __init__(self, basis: FunctionalBasis, evolution_function, n: int = 5, cmb_on: bool = False):
         super().__init__(cmb_on)
@@ -141,7 +141,7 @@ class EBLBasis(EBL):
     def no_cmb_intensity(self, wvl, z):
         lg_wvl = np.log10(wvl)
         total_intensities = self.basis.get_distribution_list(lg_wvl=lg_wvl)
-        return np.dot(self.vector,  total_intensities) * self.evolution_function(z)
+        return np.dot(self.vector, total_intensities) * self.evolution_function(z)
 
 
 if __name__ == '__main__':
