@@ -99,6 +99,6 @@ def find_optimal_number_of_basis_functions():
 
 
 if __name__ == '__main__':
-    find_optimal_number_of_basis_functions()
-    # plot_differences()
+    # find_optimal_number_of_basis_functions()
+    plot_differences()
 
