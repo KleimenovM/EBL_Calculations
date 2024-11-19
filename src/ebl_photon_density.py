@@ -129,19 +129,28 @@ class EBLBasis(EBL):
     An EBL parametrization by as a linear combination of basis functions
     Based on https://doi.org/10.1088/0004-637X/812/1/60
     """
-    def __init__(self, basis: FunctionalBasis, evolution_function, n: int = 5, cmb_on: bool = False):
+    def __init__(self, basis: FunctionalBasis, evolution_function=None,
+                 v: np.ndarray = None, cmb_on: bool = False):
         super().__init__(cmb_on)
         self.basis = basis
         self.dim = basis.n
+
+        if evolution_function is None:
+            evolution_function = self.unit_function
         self.evolution_function = evolution_function
-        v = np.zeros(self.dim)
-        v[0] = 1.0
+
+        if v is None:
+            v = np.zeros(self.dim)
+            v[0] = 1.0
         self.vector = v
 
+    @staticmethod
+    def unit_function(z):
+        return 1.0
+
     def no_cmb_intensity(self, wvl, z):
-        lg_wvl = np.log10(wvl)
-        total_intensities = self.basis.get_distribution_list(lg_wvl=lg_wvl)
-        return np.dot(self.vector, total_intensities) * self.evolution_function(z)
+        lg_wvl, total_intensities = self.basis.get_distribution_list(lg_wvl=np.log10(wvl))
+        return self.vector @ total_intensities * self.evolution_function(z)
 
 
 if __name__ == '__main__':

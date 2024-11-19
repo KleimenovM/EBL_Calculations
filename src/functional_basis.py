@@ -14,7 +14,7 @@ class FunctionalBasis:
         self.n = n  # number of basis functions
         self.m = m  # standard wvl_split size
 
-        self.low_lg_wvl: float = 0.0  # [DL], lg(wvl/mkm)
+        self.low_lg_wvl: float = -1.0  # [DL], lg(wvl/mkm)
         self.high_lg_wvl: float = 3.0  # [DL], lg(wvl/mkm)
 
         self.fb = []
@@ -57,13 +57,14 @@ class FunctionalBasis:
         if lg_wvl is None and m is None:
             lg_wvl = self.get_lg_wvl_range(self.m)
         elif m is not None:
+            self.m = m
             lg_wvl = self.get_lg_wvl_range(m)
         elif lg_wvl is not None:
-            m = lg_wvl.size
+            self.m = lg_wvl.size
         elif lg_wvl.size != m:
             raise ValueError("Choose either lg_wvl or m!")
 
-        result = np.zeros([self.n, m])
+        result = np.zeros([self.n, self.m])
 
         for i in range(self.n):
             result[i, :] = self.fb[i](lg_wvl)
