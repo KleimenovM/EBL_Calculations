@@ -106,9 +106,16 @@ class EBLSaldanaLopez(EBL):
     An EBL parametrization from the work of A.Saldana-Lopez et al. (2021)
     https://doi.org/10.1093/mnras/stab2393
     """
-    def __init__(self, cmb_on: bool = False):
+    def __init__(self, cmb_on: bool = False, if_err: int = 0):
         super().__init__(cmb_on)
-        self.file_pck = os.path.join(DATA_SL_DIR, "interpolated_intensity_SL.pck")
+        if if_err == 1:
+            filename = "interpolated_intensity_SL_upper.pck"
+        elif if_err == -1:
+            filename = "interpolated_intensity_SL_lower.pck"
+        else:
+            filename = "interpolated_intensity_SL.pck"
+
+        self.file_pck = os.path.join(DATA_SL_DIR, filename)
         self.redshift, self.lg_wavelength, self.interpolator = self.extract_interpolator()
 
     def extract_interpolator(self):
@@ -150,7 +157,10 @@ class EBLBasis(EBL):
 
     def no_cmb_intensity(self, wvl, z):
         lg_wvl, total_intensities = self.basis.get_distribution_list(lg_wvl=np.log10(wvl))
-        return self.vector @ total_intensities * self.evolution_function(z)
+        result = np.zeros_like(lg_wvl)
+        for i in range(self.dim):
+            result += self.vector[i] * total_intensities[i]
+        return result * self.evolution_function(z)
 
 
 if __name__ == '__main__':

@@ -1,11 +1,12 @@
 import numpy as np
+from numba import njit
 
 
 class FunctionalBasis:
     """
     A parent class which describes functional basis sets for fitting the EBL density
     """
-    def __init__(self, n: int = 5, m: int = 100):
+    def __init__(self, n: int = 5, m: int = 10000):
         """
         Initialize the functional basis set
         :param n: number of basis functions
@@ -28,6 +29,14 @@ class FunctionalBasis:
         if m is None:
             m = self.m
         return np.linspace(self.low_lg_wvl, self.high_lg_wvl, m)
+
+    def get_wvl_range(self, m: int = None):
+        """
+        Get a range of wvl
+        :param m: number of points in the desired wvl split
+        :return: <np.ndarray> [DL] - a logarithmically scaled range of wvl
+        """
+        return 10**self.get_lg_wvl_range(m)
 
     def set_function_list(self):
         """
@@ -64,10 +73,10 @@ class FunctionalBasis:
         elif lg_wvl.size != m:
             raise ValueError("Choose either lg_wvl or m!")
 
-        result = np.zeros([self.n, self.m])
+        result = np.repeat([np.zeros_like(lg_wvl)], self.n, axis=0)
 
         for i in range(self.n):
-            result[i, :] = self.fb[i](lg_wvl)
+            result[i] = self.fb[i](lg_wvl)
         return lg_wvl, result
 
 
@@ -81,7 +90,7 @@ class BasisFunction:
 
 
 class ExpParabolicBasis(FunctionalBasis):
-    def __init__(self, n: int, m: int):
+    def __init__(self, n: int = 5, m: int = 10000):
         super().__init__(n, m)
         edges = np.linspace(self.low_lg_wvl, self.high_lg_wvl, self.n + 1)  # the dots in .|.|.|.|.
         self.peaks = (edges[:-1] + edges[1:]) / 2.0  # the columns in .|.|.|.|.
@@ -101,14 +110,15 @@ class ExpParabolicBasis(FunctionalBasis):
 
 
 class BSplineBasis(FunctionalBasis):
-    def __init__(self, n: int, m: int):
+    def __init__(self, n: int = 5, m: int = 10000):
         super().__init__(n, m)
         self.knots = np.linspace(self.low_lg_wvl, self.high_lg_wvl, self.n + 2)  # the knots of the grid
         self.h = self.knots[1] - self.knots[0]  # distance between the knots
         self.set_function_list()
 
     def box(self, lg_wvl, i):
-        return np.heaviside(lg_wvl - self.knots[i], 1) * np.heaviside(self.knots[i+1] - lg_wvl, 0)
+        eps = 10 * np.finfo(float).eps
+        return np.heaviside(lg_wvl + eps - self.knots[i], 0.5) * np.heaviside(self.knots[i+1] - (lg_wvl + eps), 0.5)
 
     def b_spline_basis_function(self, lg_wvl, i):
         i += 1
@@ -119,14 +129,16 @@ class BSplineBasis(FunctionalBasis):
                           self.box(lg_wvl + 0 * self.h, i),
                           self.box(lg_wvl - 1 * self.h, i)])
 
-        matrix = np.array([[8,  12,  6,  1],
-                           [4,   0, -6, -3],
-                           [4,   0, -6,  3],
-                           [8, -12,  6,  -1]])
+        u0, u1, u2, u3 = u**0, u, u**2, u**3
 
-        vector = np.array([u**0, u, u**2, u**3])
+        f1 = 8 * u0 + 12 * u1 + 6 * u2 + u3
+        f2 = 4 * u0 - 6 * u2 - 3 * u3
+        f3 = 4 * u0 - 6 * u2 + 3 * u3
+        f4 = 8 * u0 - 12 * u1 + 6 * u2 - u3
 
-        return 1 / 4 * np.sum(matrix @ vector * boxes, axis=0)
+        vector = np.array([f1, f2, f3, f4])
+
+        return 1 / 4 * np.sum(vector * boxes, axis=0)
 
     def set_function_list(self):
         for i in range(self.n):

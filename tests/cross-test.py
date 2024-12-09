@@ -43,8 +43,8 @@ def test_optical_depth():
     ebl_SL = EBLSaldanaLopez(cmb_on=True)
     ebl_S = EBLSimple(cmb_on=True)
 
-    od_SL = OpticalDepth(ebl_SL, simple=True)
-    od_S = OpticalDepth(ebl_S, simple=True)
+    od_SL = OpticalDepth(ebl_SL, series_expansion=True)
+    od_S = OpticalDepth(ebl_S, series_expansion=True)
 
     _, _, tau_interpolator = load_pck(DATA_SL_DIR, "interpolated_optical_depth_SL.pck")
 
@@ -68,13 +68,13 @@ def test_optical_depth():
                  color=colors[i], alpha=0.3, linewidth=5,
                  label=r"SL-interp, $z_0$" + f" = {z0}")
 
-        saldana21 = EBLAbsorptionNormSpectralModel.read_builtin(
-            "saldana-lopez21", redshift=z0
-        )
+        # saldana21 = EBLAbsorptionNormSpectralModel.read_builtin(
+        #     "saldana-lopez21", redshift=z0
+        # )
 
-        energy = e1_line * u.TeV  # TeV
-        plt.plot(energy, -np.log(saldana21.evaluate(energy, z0, 1.0)), color=colors[i], linestyle="dotted",
-                 label=r"$\gamma py$" + f" SL: $z_0$ = {z0}")
+        # energy = e1_line * u.TeV  # TeV
+        # plt.plot(energy, -np.log(saldana21.evaluate(energy, z0, 1.0)), color=colors[i], linestyle="dotted",
+        #          label=r"$\gamma py$" + f" SL: $z_0$ = {z0}")
 
     plt.title("Gamma ray optical depth")
     plt.legend()
@@ -94,5 +94,66 @@ def test_optical_depth():
     return
 
 
+def get_a_pres_plot():
+    n_e0: int = 100
+
+    lg_e0_line = np.linspace(10, 13.5, n_e0)  # [DL], incident photon energy, lg(e/eV), 0.01 >>> 100 TeV
+    e0_line = 10 ** lg_e0_line  # [eV]
+
+    n_z = 100
+    n_e = 200
+    n_mu = 200
+
+    ebl_SL = EBLSaldanaLopez(cmb_on=True)
+    ebl_S = EBLSimple(cmb_on=True)
+
+    od_SL = OpticalDepth(ebl_SL, series_expansion=True)
+    od_S = OpticalDepth(ebl_S, series_expansion=True)
+
+    _, _, tau_interpolator = load_pck(DATA_SL_DIR, "interpolated_optical_depth_SL.pck")
+
+    colors = ['#438086', '#53548A', '#A04DA3']
+
+    plt.figure(figsize=(4, 6))
+
+    for i, z0 in enumerate([0.03, 0.14, 0.60]):
+        res = np.zeros((2, n_e0))
+        t1 = time.time()
+        for j, e0 in enumerate(e0_line):
+            res[0, j] = od_SL.get(e0, z0, n_z, n_e, n_mu)
+            # res[1, j] = od_S.get(e0, z0, n_z, n_e, n_mu)
+        print(time.time() - t1)
+        e1_line = e0_line * 1e-12
+
+        plt.subplot(2, 1, 1)
+        plt.plot(e1_line, res[0], label=f"$z_0$ = {z0}", linestyle="solid", color=colors[i])
+
+        plt.subplot(2, 1, 2)
+        plt.plot(e1_line, np.exp(-res[0]), label=f"$z_0$ = {z0}", color=colors[i], linestyle="solid")
+
+    for i in range(2):
+        plt.subplot(2, 1, i+1)
+        plt.xscale('log')
+        plt.xlim(0.01, 30)
+        plt.grid(linestyle='dashed', color='lightgray')
+
+    plt.subplot(2, 1, 1)
+    plt.ylabel(r'optical depth, $\tau_{\gamma\gamma}$')
+    plt.ylim(-0.2, 5.2)
+
+    plt.subplot(2, 1, 2)
+    plt.legend()
+    plt.xlabel('E, TeV')
+    plt.ylabel(r'EBL transparency, $e^{-\tau_{\gamma\gamma}}$')
+
+    plt.tight_layout()
+
+    plt.savefig(os.path.join(PICS_DIR, "optical_depth3.png"), dpi=600)
+    # plt.savefig(os.path.join(PICS_DIR, "optical_depth2.pdf"))
+    plt.show()
+    return
+
+
 if __name__ == '__main__':
-    test_optical_depth()
+    # test_optical_depth()
+    get_a_pres_plot()
