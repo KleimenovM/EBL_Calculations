@@ -46,9 +46,9 @@ def ebl_data_import():
     lg_energies = np.log10(energies)  # [DL], lg(e/eV)
 
     f = interpolate(x=redshifts, y=lg_energies, z=tau, if_log_z=False)
-    save_interpolator(redshifts, lg_energies, f,
-                      folder=DATA_SL_DIR, filename='interpolated_optical_depth_SL.pck',
-                      x_name='redshift', y_name='lg_energy', interp_name='interp')
+    # save_interpolator(redshifts, lg_energies, f,
+    #                   folder=DATA_SL_DIR, filename='interpolated_optical_depth_SL.pck',
+    #                   x_name='redshift', y_name='lg_energy', interp_name='interp')
 
     redshift = np.linspace(0, 6, 500)
     lg_energy = np.linspace(lg_energies[0], lg_energies[-1], 500)

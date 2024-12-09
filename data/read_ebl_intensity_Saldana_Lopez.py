@@ -1,21 +1,19 @@
 import os
-import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
 
 from config.settings import DATA_SL_DIR
-
-
-def log10_eps(x):
-    return np.log10(x + np.finfo(float).tiny)
+from src.interpolation_2D import plot_interpolated_values, save_interpolator, log10_eps, interpolate
 
 
 def ebl_intensity_data_import(folder, filename,
                               if_log_data: bool = False, if_log_wvl: bool = True):
-    redshifts = [0., 0.01, 0.03, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2,
-                 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6, 5.8, 6.]  # [DL]
-    n = len(redshifts)
+    redshifts = np.array([0., 0.01, 0.03, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0,
+                          1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0,
+                          3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0,
+                          5.2, 5.4, 5.6, 5.8, 6.])  # [DL]
+    n = redshifts.size
 
     path = os.path.join(folder, filename)
 
@@ -52,43 +50,6 @@ def ebl_intensity_data_import(folder, filename,
         wvl = wavelength
 
     return redshifts, wvl, data
-
-
-def interpolate(x, y, z, if_log_z: bool = False, bounds_error=False):
-    if if_log_z:
-        z1 = log10_eps(z)
-    else:
-        z1 = z
-
-    return RegularGridInterpolator((x, y), z1, bounds_error=bounds_error, fill_value=None)
-
-
-def save_interpolator(x: np.ndarray[float], y: np.ndarray[float], interpolator: RegularGridInterpolator,
-                      folder: str, filename: str,
-                      x_name: str = "redshift", y_name: str = "wavelength", interp_name="interp"):
-    interp_dict = {x_name: x, y_name: y, interp_name: interpolator}
-
-    path = os.path.join(folder, filename)
-
-    with open(path, "wb") as pickle_file:
-        pickle.dump(interp_dict, pickle_file)
-
-    return
-
-
-def plot_interpolated_values(x: np.ndarray[float], y: np.ndarray[float], interp: RegularGridInterpolator,
-                             delog: bool = False):
-    grid_x, grid_y = np.meshgrid(x, y, indexing='ij')
-    data = interp((grid_x, grid_y))
-
-    if delog:
-        data = 10 ** data
-        y = 10 ** y
-
-    plt.pcolormesh(y, x, data)
-    plt.colorbar()
-    plt.xscale('log')
-    return
 
 
 def plot_SL_data(x: np.ndarray[float], y: np.ndarray[float], data: np.ndarray[float],
@@ -131,12 +92,12 @@ def main():
     f_plus = interpolate(x=redshift, y=lg_wvl, z=inten + delta_inten, if_log_z=True)
     f_minus = interpolate(x=redshift, y=lg_wvl, z=inten - delta_inten, if_log_z=True)
 
-    save_interpolator(x=redshift, y=lg_wvl, interpolator=f,
-                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL.pck")
-    save_interpolator(x=redshift, y=lg_wvl, interpolator=f_plus,
-                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL_upper.pck")
-    save_interpolator(x=redshift, y=lg_wvl, interpolator=f_minus,
-                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL_lower.pck")
+    # save_interpolator(x=redshift, y=lg_wvl, interpolator=f,
+    #                   folder=DATA_SL_DIR, filename="interpolated_intensity_SL.pck")
+    # save_interpolator(x=redshift, y=lg_wvl, interpolator=f_plus,
+    #                   folder=DATA_SL_DIR, filename="interpolated_intensity_SL_upper.pck")
+    # save_interpolator(x=redshift, y=lg_wvl, interpolator=f_minus,
+    #                   folder=DATA_SL_DIR, filename="interpolated_intensity_SL_lower.pck")
 
     plot_and_compare(redshift, lg_wvl, log10_eps(inten), f_plus, True)
 
