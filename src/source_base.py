@@ -13,7 +13,7 @@ class Source:
         self.title: str = title
         self.z: float = z
         self.e_ref: np.ndarray = e_ref * 1e12  # TeV -> eV
-        self.lg_e_ref: np.ndarray = np.log10(self.e_ref)
+        self.lg_e_ref: np.ndarray = np.log10(self.e_ref)  # lg(e/eV)
         self.dnde: np.ndarray = dnde
         self.n = self.dnde.shape[0]
         self.dnde_errn: np.ndarray = dnde_errn
@@ -71,7 +71,7 @@ class SourceBase:
         try:
             return self.source_base[i]
         except IndexError:
-            print("Alles kaput")
+            print("Wrong index! You either went too far, or entered something weird.")
 
 
 if __name__ == '__main__':
