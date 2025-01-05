@@ -1,10 +1,14 @@
+import os
+import pickle
+
 import numpy as np
 from scipy.integrate import trapezoid, cumulative_trapezoid
+from scipy.interpolate import RegularGridInterpolator
 
 from config.constants import H0, C, OMEGA_M, OMEGA_DE, MPC_M
 from config.settings import DATA_SL_DIR, DATA_DIR
 from src.cross_section import gamma_gamma_cross_section, total_cross_section
-from src.ebl_photon_density import EBL
+from src.ebl_photon_density import EBL, EBLBasis
 from src.interpolation_2D import interpolate, save_interpolator, plot_interpolated_values
 
 
@@ -78,7 +82,8 @@ class OpticalDepth:
 class OpticalDepthInterpolator:
     def __init__(self, optical_depth: OpticalDepth,
                  z0_max: float = 1.0, n_z0: int = 100,
-                 lg_e0_range=None, n_e0: int = 100):
+                 lg_e0_range=None, n_e0: int = 100,
+                 n_e: int = 100, n_mu: int = 100):
         self.n_z0 = n_z0
         self.z0 = z0_max
         self.z0_line = np.linspace(0, self.z0, n_z0)
@@ -89,8 +94,12 @@ class OpticalDepthInterpolator:
         self.lg_e0 = np.linspace(lg_e0_range[0], lg_e0_range[1], self.n_e0)
         self.e0 = 10**self.lg_e0
 
+        # OpticalDepth parameters
         self.optical_depth = optical_depth
         self.optical_depth.integrate_outer = cumulative_trapezoid
+        # OpticalDepth.get() parameters
+        self.n_e = n_e
+        self.n_mu = n_mu
 
         self.od_table = self.fill_the_optical_depth_table()
         self.interpolator = self.set_the_interpolator()
@@ -103,7 +112,8 @@ class OpticalDepthInterpolator:
         """
         od_table = np.zeros([self.n_z0, self.n_e0])
         for i, e_0i in enumerate(self.e0):
-            v = self.optical_depth.get(e0=e_0i, z0=self.z0, n_z=self.n_z0+1)
+            v = self.optical_depth.get(e0=e_0i, z0=self.z0, n_z=self.n_z0+1,
+                                       n_e=self.n_e, n_mu=self.n_mu)
             od_table[:, i] = v
         return od_table
 
@@ -125,6 +135,73 @@ class OpticalDepthInterpolator:
                           folder=folder, filename=filename,
                           x_name="redshift", y_name="lg_energy", interp_name="interp")
         pass
+
+
+class BasisOpticalDepth:
+    def __init__(self, ebl_model, name: str = "basis_optical_depth_model",
+                 series_expansion: bool = True,
+                 z0_max: float = 1.0, n_z0: int = 100,
+                 lg_e0_range=None, n_e0: int = 100,
+                 n_e: int = 100, n_mu: int = 100):
+        self.name = name
+        self.ebl_model: EBLBasis = ebl_model
+        self.basis = ebl_model.basis
+        self.vector = self.ebl_model.vector
+
+        self.dim = self.ebl_model.dim
+        self.unit_matrix = np.eye(self.dim)
+        self.interpolator: list[RegularGridInterpolator] = []
+        self.empty: bool = True
+
+        # OpticalDepth parameters
+        self.series_expansion = series_expansion
+        self.n_e = n_e
+        self.n_mu = n_mu
+
+        # OpticalDepthInterpolator parameters
+        self.z0_max = z0_max
+        self.n_z0 = n_z0
+        self.lg_e0_range = lg_e0_range
+        self.n_e0 = n_e0
+        return
+
+    def set(self):
+        for i in range(self.dim):
+            print(i)
+            self.ebl_model.vector = self.unit_matrix[i]
+            od_i = OpticalDepth(self.ebl_model, series_expansion=self.series_expansion)
+            odi_i = OpticalDepthInterpolator(optical_depth=od_i,
+                                             z0_max=self.z0_max, n_z0=self.n_z0,
+                                             lg_e0_range=self.lg_e0_range, n_e0=self.n_e0,
+                                             n_e=self.n_e, n_mu=self.n_mu)
+            self.interpolator.append(odi_i.interpolator)
+        self.empty = False
+        return
+
+    def get_basis_components(self, z0: float, e0: np.ndarray):
+        final_matrix = np.zeros([self.dim, e0.size])
+
+        z_line = z0 * np.ones(e0.size)
+
+        for i in range(self.dim):
+            final_matrix[i] = self.interpolator[i]((z_line, e0))
+
+        return final_matrix
+
+    def get(self, z0: float, e0: np.ndarray, vector=None):
+        return vector @ self.get_basis_components(z0, e0)
+
+    def save(self, filename: str = None, folder=DATA_DIR):
+        if filename is None:
+            filename = self.name + ".pck"
+        if self.empty:
+            raise Exception("Saving empty interpolator, aborted")
+
+        path = os.path.join(folder, filename)
+
+        with open(path, "wb") as pickle_file:
+            pickle.dump(self, pickle_file)
+        return
 
 
 if __name__ == '__main__':
