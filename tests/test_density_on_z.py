@@ -23,15 +23,15 @@ def test_density_on_z():
     # for (i, z) in enumerate([0.0, 0.01, 0.05, 0.1, 0.3, 0.5]):
     #     ax1.plot(wvl, ebl_s.intensity(wvl, z) * 1e9, color='red', alpha=1 - i / n, label=f"S: z = {z}")
 
-    ax1.plot(0, 0, color='blue', linewidth=0, label="EBL")
+    ax1.plot(0, 0, color='darkred', linewidth=0, label="EBL")
     for (i, z) in enumerate(z_range):
-        ax1.plot(e, ebl_SL.intensity(wvl, z) * 1e9, color='brown', alpha=1 - i / n, label=f"{z}")
+        ax1.plot(e, ebl_SL.intensity(wvl, z) * 1e9, color='brown', alpha=1 - i / n, label=f"{z}", linewidth=2)
 
-    ax1.plot(0, 0, color='green', linewidth=0, label="CMB")
+    ax1.plot(0, 0, color='darkgreen', linewidth=0, label="CMB")
     for (i, z) in enumerate(z_range):
-        ax1.plot(e, ebl_CMB.intensity(wvl, z) * 1e9, color='green', alpha=1 - i / n, label=f"{z}")
+        ax1.plot(e, ebl_CMB.intensity(wvl, z) * 1e9, color='green', alpha=1 - i / n, label=f"{z}", linewidth=2)
 
-    plt.legend(ncol=2)
+    plt.legend(ncol=2, framealpha=0)
     plt.xlim(2e-3, 2e1)
     # plt.ylim(5e-1, 5e1)
     ax2.set_xlabel(r'wavelength, $\mu m$')

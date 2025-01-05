@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.integrate import trapezoid as integrate
@@ -6,6 +8,7 @@ from scipy.optimize import minimize
 from config.settings import PICS_DIR, DATA_SL_DIR
 from src.ebl_photon_density import EBLSaldanaLopez, EBLSimple, EBLBasis
 from src.functional_basis import FunctionalBasis, BSplineBasis, ExpParabolicBasis
+from src.optical_depth import OpticalDepth
 
 
 def norm2(f, x):
@@ -50,11 +53,13 @@ def fit_saldana_lopez_vector(fb: FunctionalBasis = BSplineBasis(n=10, m=40000),
     a = chi2_minimization(SL_intensity, basis_intensities, weights, lg_e)
 
     if if_plot:
-        plt.fill_between(wvl, SL_lower, SL_upper, color='royalblue', alpha=.5)
-        plt.plot(wvl, SL_intensity, linewidth=4, color='royalblue', label='SL')
-        plt.plot(wvl, a @ basis_intensities, linewidth=2, color='red', label='fit')
-        plt.legend(fontsize=12, loc=2)
-        plt.plot(wvl, a * basis_intensities.T, alpha=.1, color='black')
+        e = ebl_SL.wvl_to_e(wvl)
+        colors = ['#A04DA3', '#53548A', '#438086']
+        plt.fill_between(e, SL_lower * 1e9, SL_upper * 1e9, color=colors[2], alpha=.5)
+        plt.plot(e, SL_intensity * 1e9, linewidth=4, color=colors[2], label='Saldana-Lopez')
+        plt.plot(e, a @ basis_intensities * 1e9, linewidth=2, color='red', label='B-spline fit')
+        plt.legend(loc=1)
+        plt.plot(e, a * basis_intensities.T * 1e9, alpha=.1, color='black')
         plt.xscale('log')
 
     if if_show:
@@ -143,8 +148,28 @@ def find_optimal_number_of_basis_functions():
     return
 
 
+def a_single_plot():
+    plt.figure(figsize=(4, 4))
+
+    n = 17
+
+    fb = BSplineBasis(n=n)
+    fit_saldana_lopez_vector(fb, if_plot=True)
+
+    plt.tick_params()
+    plt.grid(linestyle='--', color='lightgray')
+    plt.xlabel(r"energy, eV")
+    plt.ylabel(r"$\nu I_\nu, \mathrm{nW\ m^{-2}\ sr^{-1}}$")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(PICS_DIR, "fit_SL_one_pic.png"), dpi=600)
+    plt.show()
+    return
+
+
 if __name__ == '__main__':
+    a_single_plot()
     # find_optimal_number_of_basis_functions()
-    plot_differences()
+    # plot_differences()
     # check_densities()
 
