@@ -29,7 +29,7 @@ def interpolate(x: np.ndarray, y: np.ndarray, z: np.ndarray,
     return RegularGridInterpolator((x, y), z1, bounds_error=bounds_error, fill_value=None)
 
 
-def save_interpolator(x: np.ndarray[float], y: np.ndarray[float], interpolator: RegularGridInterpolator,
+def save_interpolator(x: np.ndarray, y: np.ndarray, interpolator: RegularGridInterpolator,
                       folder: str, filename: str,
                       x_name: str = "redshift", y_name: str = "wavelength", interp_name="interp"):
     """
