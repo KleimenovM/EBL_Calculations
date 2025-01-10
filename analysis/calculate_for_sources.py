@@ -167,13 +167,13 @@ def calculate_for_sources(a0: int = 1):
 
 def make_a_nice_picture():
     plt.figure(figsize=(4, 4))
-    check_one_source([23, 1], False)
+    check_one_source([23, 1], True)
 
     plt.xlim(0.1, 20)
     # plt.legend(fancybox=True, framealpha=0.0)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(PICS_DIR, "double-stevecat-source-no-attenuation.png"), dpi=600, transparent=True)
+    # plt.savefig(os.path.join(PICS_DIR, "double-stevecat-source-no-attenuation.png"), dpi=600, transparent=True)
     plt.show()
     return
 
