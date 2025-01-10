@@ -1,5 +1,6 @@
 import os.path
 import numpy as np
+import matplotlib.pyplot as plt
 
 from astropy.table import Table
 
@@ -18,6 +19,18 @@ class Source:
         self.n = self.dnde.shape[0]
         self.dnde_errn: np.ndarray = dnde_errn
         self.dnde_errp: np.ndarray = dnde_errp
+
+        self.e0 = np.sqrt(self.e_ref[0] * self.e_ref[-1])
+        self.phi0 = np.sqrt(self.dnde[0] * self.dnde[-1])
+
+    def plot_spectrum(self):
+        plt.figure(figsize=(8, 6))
+        plt.errorbar(self.e_ref, self.dnde, yerr=[self.dnde_errn, self.dnde_errp], linestyle='', marker='o')
+        plt.plot(self.e_ref, self.phi0 * (self.e_ref / self.e0)**(-2), color='black', linestyle='--')
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.show()
+        return
 
 
 class SourceBase:
