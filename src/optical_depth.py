@@ -139,7 +139,7 @@ class OpticalDepthInterpolator:
 
 class BasisOpticalDepth:
     def __init__(self, ebl_model, name: str = "basis_optical_depth_model",
-                 series_expansion: bool = True,
+                 series_expansion: bool = True, if_empty: bool = False,
                  z0_max: float = 1.0, n_z0: int = 100,
                  lg_e0_range=None, n_e0: int = 100,
                  n_e: int = 100, n_mu: int = 100):
@@ -163,6 +163,9 @@ class BasisOpticalDepth:
         self.n_z0 = n_z0
         self.lg_e0_range = lg_e0_range
         self.n_e0 = n_e0
+
+        if not if_empty:
+            self.set()
         return
 
     def set(self):
