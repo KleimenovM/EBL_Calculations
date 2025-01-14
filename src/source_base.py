@@ -24,7 +24,7 @@ class Source:
         self.phi0 = np.sqrt(self.dnde[0] * self.dnde[-1])
 
     def plot_spectrum(self):
-        plt.figure(figsize=(8, 6))
+        # plt.figure(figsize=(8, 6))
         plt.errorbar(self.e_ref, self.dnde, yerr=[self.dnde_errn, self.dnde_errp], linestyle='', marker='o')
         plt.plot(self.e_ref, self.phi0 * (self.e_ref / self.e0)**(-2), color='black', linestyle='--')
         plt.xscale('log')
@@ -66,14 +66,14 @@ class SourceBase:
             spectrum = Table.read(filename)
             # set a source
             z = line['redshift']
-            e_ref: np.ndarray = np.array(spectrum['e_ref'])
-            dnde: np.ndarray = np.array(spectrum['dnde'])
+            e_ref: np.ndarray = spectrum['e_ref'].data
+            dnde: np.ndarray = spectrum['dnde'].data
             real_values: np.ndarray[bool] = ~np.isnan(e_ref) * ~np.isnan(dnde)
             source = Source(title=spectrum.meta['source_name'],
                             z=z, e_ref=e_ref[real_values],
-                            dnde=spectrum['dnde'][real_values],
-                            dnde_errn=spectrum['dnde_errn'][real_values],
-                            dnde_errp=spectrum['dnde_errp'][real_values])
+                            dnde=spectrum['dnde'][real_values].data,
+                            dnde_errn=spectrum['dnde_errn'][real_values].data,
+                            dnde_errp=spectrum['dnde_errp'][real_values].data)
             if self.event_number_criterion(source) and self.rsh_criterion(source):
                 self.source_base.append(source)
 
