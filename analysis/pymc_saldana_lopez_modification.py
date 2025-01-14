@@ -56,7 +56,7 @@ def simple_saldana_lopez_modification():
 
     gm = GreauxModel(name=source.title,
                      phi0=source.phi0,
-                     e0=source.e_ref,
+                     e0=source.e0,
                      gamma=2.0, beta=0.0, eta=0.0, lam=0.0)
 
     e_ref = source.e_ref
