@@ -1,4 +1,5 @@
 import os
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import emcee as emc
@@ -7,50 +8,11 @@ import seaborn as sns
 import multiprocessing as mp
 import pickle as pck
 
-from scipy.interpolate import CubicSpline
-
-from config.settings import DATA_DIR
-from src.ebl_photon_density import EBLSaldanaLopez, EBL
+from config.settings import DATA_DIR, MCMC_DIR
+from src.ebl_photon_density import EBLSaldanaLopez
 from src.optical_depth import OpticalDepth, OpticalDepthInterpolator
 from src.source_base import SourceBase, Source
 from src.source_spectra import GreauxModel
-
-
-class FastSL:
-    def __init__(self, source: Source):
-        self.ebl = EBLSaldanaLopez()
-        self.od = OpticalDepth(ebl=self.ebl, series_expansion=True)
-        self.odi = OpticalDepthInterpolator(self.od)
-
-        self.z0 = source.z
-        self.e0 = source.e_ref
-        self.lg_e_wide = np.linspace(np.log10(self.e0[0]) - 1, np.log10(self.e0[-1]) + 1, 10 ** 5)
-        z_wide = self.z0 * np.ones_like(self.lg_e_wide)
-        self.values = self.odi.interpolator((z_wide, self.lg_e_wide))
-
-        self.pf = CubicSpline(self.lg_e_wide, np.log(self.values))
-        return
-
-    def __call__(self, e: np.ndarray) -> np.ndarray:
-        return np.exp(self.pf(np.log10(e)))
-
-    def test(self):
-        plt.plot(self.lg_e_wide, self.values)
-        plt.plot(self.lg_e_wide, self(10 ** self.lg_e_wide))
-        plt.yscale('log')
-        plt.show()
-        return
-
-
-class FastOneParameterSLBasedModel:
-    def __init__(self, fast_SL: FastSL, gm: GreauxModel):
-        self.fast_SL = fast_SL
-        self.gm = gm
-
-    def __call__(self, e, alpha, gamma, beta, eta, lam, eps):
-        mod_e = e * np.exp(-eps)
-        tau = self.fast_SL(mod_e)
-        return np.exp(-alpha * tau) * self.gm.get(mod_e, gamma, beta, eta, lam)
 
 
 class OneParameterSLBasedModel:
@@ -68,17 +30,55 @@ class OneParameterSLBasedModel:
         return np.exp(-alpha * tau) * self.gm.get(mod_e, gamma, beta, eta, lam)
 
 
+# --------------------------------
+# PROBABILISTIC SETTING
+# --------------------------------
+
+
 def log_likelihood_single_source(source: Source, model: np.ndarray):
+    """
+    Calculates the log-likelihood for a single source given a model and observed data.
+
+    :param source: [Source] An instance of the `Source` class containing observed `dnde`
+        data, upper errors (`dnde_errp`), and lower errors (`dnde_errn`).
+    :param model: [numpy.array] the predicted `dnde` values of the model corresponding to the observation points
+    :return: [float]  the negative total log-likelihood based on the observed data and model predictions
+    """
     delta = model - source.dnde
     log_likelihood_plus = np.heaviside(delta, 0.5) * (delta ** 2 / (2 * source.dnde_errp ** 2))
     log_likelihood_minus = np.heaviside(-delta, 0.5) * (delta ** 2 / (2 * source.dnde_errn ** 2))
     return - np.sum(log_likelihood_plus + log_likelihood_minus)
 
 
-def log_prior(alpha, gamma, beta, eta, lam, eps):
+def log_norm(x, mu, sigma):
     """
-    Calculate the log prior
-    :param alpha: N(1, 0.2)
+    Calculate the log pdf of a normal distribution
+    :param x: value
+    :param mu: center of a normal distribution
+    :param sigma: variance of a normal distribution
+    :return: parabolic_function - const(sigma)
+    """
+    # TODO: is there a need to calculate the logs? They always give a constant contribution!
+    # return -(x - mu) ** 2 / (2 * sigma ** 2)
+    return -(x - mu) ** 2 / (2 * sigma ** 2) - 0.5 * np.log(2 * np.pi * sigma ** 2)
+
+
+def log_uniform(x, center, halfwidth):
+    """
+    Calculate the log pdf of a uniform distribution
+    :param x: value
+    :param center: center of a uniform distribution
+    :param halfwidth: halfwidth of a uniform distribution
+    :return: log(1/2hw) if x is in the uniform distribution, -np.inf otherwise
+    """
+    # TODO: is there a need to calculate the logs? They always give a constant contribution!
+    # return if abs(x - center) < halfwidth else - np.inf
+    return np.log(1 / (2 * halfwidth)) if abs(x - center) < halfwidth else -np.inf
+
+
+def log_prior_source(gamma, beta, eta, lam, eps):
+    """
+    Calculate the 'source' log prior
     :param gamma: U(2, 3)
     :param beta: U(0, 2)
     :param eta: U(0, 4)
@@ -86,40 +86,46 @@ def log_prior(alpha, gamma, beta, eta, lam, eps):
     :param eps: N(0, 0.1)
     :return:
     """
+    return (log_uniform(gamma, 2, 3) + log_uniform(beta, 0, 2)
+            + log_uniform(eta, 0, 4) + log_uniform(lam, 0, 2)
+            + log_norm(eps, 0, 0.1))
 
-    def log_norm(x, mu, sigma):
-        return -(x - mu) ** 2 / (2 * sigma ** 2) - 0.5 * np.log(2 * np.pi * sigma ** 2)
 
-    def log_uniform(x, center, halfwidth):
-        return np.log(1 / 2 * halfwidth) if abs(x - center) < halfwidth else -np.inf
-
-    return (log_norm(alpha, 1, 0.2) + log_uniform(gamma, 2, 3) +
-            log_uniform(beta, 0, 2) + log_uniform(eta, 0, 4) +
-            log_uniform(lam, 0, 2) + log_norm(eps, 0, 0.1))
+def log_alpha(alpha):
+    """
+    Calculate the 'alpha' log prior
+    :param alpha: N(1, 0.2)
+    :return:
+    """
+    return log_norm(alpha, 1, 0.2)
 
 
 def log_probability(theta, source, model_class):
-    lp = log_prior(*theta)
+    lp = log_alpha(theta[0]) + log_prior_source(*theta[1:])
     if not np.isfinite(lp):
         return -np.inf
     model = model_class(source.e_ref, *theta)
     return lp + log_likelihood_single_source(source=source, model=model)
 
 
-def check_the_sampler(sampler, ndim):
-    fig, axes = plt.subplots(ndim, figsize=(10, 10), sharex=True)
-    samples = sampler.get_chain()
-    labels = ["alpha", "gamma", "beta", "eta", "lam", "eps"]
-    for i in range(ndim):
-        ax = axes[i]
-        ax.plot(samples[:, :, i], "k", alpha=0.3)
-        ax.set_xlim(0, len(samples))
-        ax.set_ylabel(labels[i])
-        ax.yaxis.set_label_coords(-0.1, 0.5)
+def long_log_probability(theta, sources, models):
+    lp = log_alpha(theta[0])
+    for i, s in enumerate(sources):
+        theta_s = theta[1 + 5 * i: 1 + 5 * (i+1)]
 
-    axes[-1].set_xlabel("step number")
-    plt.show()
-    return
+        lps = log_prior_source(*theta_s)
+        if not np.isfinite(lps):
+            return -np.inf
+        model_s = models[i](s.e_ref, theta[0], *theta_s)
+        lp += log_likelihood_single_source(source=s, model=model_s)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp
+
+
+# --------------------------------
+# MCMC VARIOUS ORGANIZATIONS
+# --------------------------------
 
 
 class SimpleSLModification:
@@ -153,31 +159,49 @@ class SimpleSLModification:
         return op_SL_model, sampler.get_chain(discard=200, thin=25, flat=True)
 
 
-def simple_sl_modification(source, nsteps: int = 1000):
-    theta0 = np.array([1.0, 2.0, 0.0, 0.0, 0.0, 0.0])
-    sigmas = np.array([0.2, 3.0, 2.0, 4.0, 2.0, 0.1])
+class GeneralModification:
+    def __init__(self, optical_depth_interpolator: OpticalDepthInterpolator,
+                 sources: list[Source],
+                 nwalkers: int = 32, nsteps: int = 1000):
+        self.odi = optical_depth_interpolator
 
-    pos = theta0 + sigmas / 2 * np.random.randn(32, 6)
-    nwalkers, ndim = pos.shape
+        self.nwalkers = nwalkers
+        self.nsteps = nsteps
 
-    gm = GreauxModel(name=source.title,
-                     phi0=source.phi0,
-                     e0=source.e0,
-                     gamma=2.0, beta=0.0, eta=0.0, lam=0.0)
+        self.sources = sources
+        self.nsources = len(sources)
+        self.ndim = 1 + 5 * self.nsources  # general alpha and 5 source-parameters
+        self.theta0 = np.array([1.0] + [2.0, 0.0, 0.0, 0.0, 0.0] * self.nsources)
+        self.sigmas = np.array([0.2] + [3.0, 2.0, 4.0, 2.0, 0.1] * self.nsources)
 
-    op_SL_model = FastOneParameterSLBasedModel(FastSL(source), gm)
+        self.models = []
+        self.source_data()
+        return
 
-    sampler = emc.EnsembleSampler(nwalkers, ndim, log_probability,
-                                  args=(source, op_SL_model))
+    def source_data(self):
+        for source in self.sources:
+            gm = GreauxModel(name=source.title,
+                             phi0=source.phi0,
+                             e0=source.e0,
+                             gamma=2.0, beta=0.0, eta=0.0, lam=0.0)
 
-    sampler.run_mcmc(pos, nsteps, progress=True)
+            self.models.append(OneParameterSLBasedModel(self.odi, source, gm))
+        return
 
-    # print(sampler.get_autocorr_time()
-    # check_the_sampler(sampler, ndim)
+    def run(self):
+        pos = self.theta0 + self.sigmas / 4 * np.random.randn(self.nwalkers, self.ndim)
 
-    flat_samples = sampler.get_chain(discard=200, thin=25, flat=True)
+        with mp.Pool(mp.cpu_count()) as pool:
+            sampler = emc.EnsembleSampler(self.nwalkers, self.ndim, long_log_probability,
+                                          args=(self.sources, self.models), pool=pool)
+            sampler.run_mcmc(pos, self.nsteps, progress=True)
 
-    return [op_SL_model, flat_samples]
+        return sampler.get_chain(discard=200, thin=25, flat=True)
+
+
+# --------------------------------
+# PLOTTING TOOLS
+# --------------------------------
 
 
 def plot_all_the_spectra(flat_samples, source, op_SL_model, if_show=False):
@@ -186,7 +210,7 @@ def plot_all_the_spectra(flat_samples, source, op_SL_model, if_show=False):
     for s in flat_samples:
         res = op_SL_model(e1, *s)
         # print(res)
-        plt.plot(e1, res, alpha=0.1)
+        plt.plot(e1, res, alpha=0.1, color='orange')
         # print(res)
     plt.xscale('log')
     plt.yscale('log')
@@ -205,19 +229,102 @@ def plot_hist(flat_samples):
     return
 
 
-def single_source_main():
+# --------------------------------
+# FILE MANAGEMENT
+# --------------------------------
+
+
+def save_as_pck(nwalkers, nsteps, data, mode: int = 1):
+    t = time.strftime("%Y%m%d")
+
+    if mode != 1 and mode != 2:
+        raise ValueError("mode must be 1 (short) or 2 (long)")
+    modeline = "short" if mode == 1 else "long"
+
+    with open(os.path.join(MCMC_DIR, f"{t}_{modeline}_{nwalkers}w_{nsteps}st.pck"), "wb") as pickle_file:
+        pck.dump(data, pickle_file)
+    return
+
+
+def plot_all_the_spectra_from_file1():
+    with open(os.path.join(DATA_DIR, "results.pck"), "rb") as pickle_file:
+        data = pck.load(pickle_file)
+
+    sources, results = data[0], data[1]
+
+    plt.figure(figsize=(10, 10))
+    joint_result = pd.DataFrame(results[0][1], columns=["alpha", "gamma", "beta", "eta", "lam", "eps"])
+    for i, s in enumerate(sources):
+        plt.subplot(4, 3, i + 1)
+        plot_all_the_spectra(results[i][1], s, results[i][0])
+        pd.concat([joint_result, pd.DataFrame(results[i][1])])
+
+    plt.tight_layout()
+    plt.show()
+    return
+
+
+def plot_all_the_spectra_from_file2(filename, mode: int = 2):
+    with open(os.path.join(MCMC_DIR, filename), "rb") as pickle_file:
+        data = pck.load(pickle_file)
+
+    gm: GeneralModification = data[0]
+    results = data[1]
+
+    sources = gm.sources
+    models = gm.models
+
+    print(results.shape)
+
+    if mode == 1:
+        plt.figure(figsize=(10, 10))
+        for i, s in enumerate(sources):
+            plt.subplot(4, 3, i + 1)
+            s.plot_spectrum(if_show=False)
+            e_wide = np.linspace(s.e_ref[0] * 0.8, s.e_ref[-1]*1.2, 100)
+            for j in range(results.shape[0]):
+                if j % 9 != 0:
+                    continue
+                plt.plot(e_wide, models[i](e_wide, results[j][0], *results[j][1+i*5:1+(i+1)*5]),
+                         alpha=0.02, color='orange')
+
+        plt.tight_layout()
+        plt.show()
+
+    if mode == 2:
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111)
+        sns.kdeplot(results[:, 0], color='orange', linewidth=2, linestyle='--', ax=ax)
+        ax2 = ax.twinx()
+        ax2.hist(results[:, 0], bins=100, alpha=0.5)
+        plt.show()
+
+    return
+
+
+# --------------------------------
+# EXECUTABLE METHODS
+# --------------------------------
+
+
+def single_source_main(i: int = 1):
     sb = SourceBase()
-    source: Source = sb(1)
-    op_SL_model, flat_samples = simple_sl_modification(source)
+    source: Source = sb(i)
+
+    odi = OpticalDepthInterpolator(OpticalDepth(ebl=EBLSaldanaLopez()))
+    ssl_mod = SimpleSLModification(odi, nwalkers=32, nsteps=1500)
+    op_SL_model, flat_samples = ssl_mod.run(source)
+
     # plot_all_the_spectra(flat_samples, source, op_SL_model)
     plot_hist(flat_samples, source, op_SL_model)
     return
 
 
-def several_sources_main():
+def several_sources_main(n: int = 12, nwalkers: int = 32, nsteps: int = 1500):
     sb = SourceBase(if_min_evt=True, min_evt=5)
-    # source_ids = np.arange(1, 100, 1)
-    sources = [sb(i) for i in range(sb.n)]
+    n = min(n, sb.n)
+    source_ids = np.random.choice(np.arange(0, sb.n), size=n, replace=False)
+    sources = [sb(i) for i in source_ids]
 
     odi = OpticalDepthInterpolator(OpticalDepth(ebl=EBLSaldanaLopez()))
     ssl_mod = SimpleSLModification(odi, nwalkers=32, nsteps=1500)
@@ -225,13 +332,13 @@ def several_sources_main():
     with mp.Pool(processes=mp.cpu_count()) as pool:
         results = pool.map(ssl_mod.run, sources)
 
-    pck.dump(results, os.path.join(DATA_DIR, "results.pck"))
+    save_as_pck(nwalkers, nsteps, [sources, results], mode=1)
 
     plt.figure(figsize=(10, 10))
     joint_result = pd.DataFrame(results[0][1], columns=["alpha", "gamma", "beta", "eta", "lam", "eps"])
     for i, s in enumerate(sources):
-        # plt.subplot(4, 3, i + 1)
-        # plot_all_the_spectra(results[i][1], s, results[i][0])
+        plt.subplot(4, 3, i + 1)
+        plot_all_the_spectra(results[i][1], s, results[i][0])
         pd.concat([joint_result, pd.DataFrame(results[i][1])])
 
     plot_hist(joint_result)
@@ -239,6 +346,24 @@ def several_sources_main():
     return
 
 
+def several_sources_long_main(n: int = 12, nwalkers: int = 150, nsteps: int = 1000):
+    sb = SourceBase(if_min_evt=True, min_evt=5)
+    n = min(n, sb.n)
+    source_ids = np.random.choice(np.arange(0, sb.n), size=n, replace=False)
+    sources = [sb(i) for i in source_ids]
+
+    odi = OpticalDepthInterpolator(OpticalDepth(ebl=EBLSaldanaLopez()))
+    gen_mod = GeneralModification(odi, sources, nwalkers=nwalkers, nsteps=nsteps)
+
+    flat_samples = gen_mod.run()
+
+    save_as_pck(nwalkers, nsteps, [gen_mod, flat_samples], mode=2)
+    return
+
+
 if __name__ == '__main__':
     # single_source_main()
-    several_sources_main()
+    # several_sources_main()
+    # plot_all_the_spectra_from_file1()
+    # several_sources_long_main()
+    plot_all_the_spectra_from_file2("20250128_long_300w_5000st.pck", mode=1)
