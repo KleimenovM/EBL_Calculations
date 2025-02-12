@@ -145,3 +145,7 @@ class BSplineBasis(FunctionalBasis):
             bf = BasisFunction(i=i, f=self.b_spline_basis_function)
             self.fb.append(bf)
         return
+
+
+if __name__ == '__main__':
+    print("Not for direct use")

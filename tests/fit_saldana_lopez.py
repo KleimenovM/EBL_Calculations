@@ -3,12 +3,10 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.integrate import trapezoid as integrate
-from scipy.optimize import minimize
 
-from config.settings import PICS_DIR, DATA_SL_DIR
-from src.ebl_photon_density import EBLSaldanaLopez, EBLSimple, EBLBasis
-from src.functional_basis import FunctionalBasis, BSplineBasis, ExpParabolicBasis
-from src.optical_depth import OpticalDepth
+from src.ebl_photon_density import EBLSaldanaLopez, EBLBasis
+from src.functional_basis import FunctionalBasis, BSplineBasis
+
 
 
 def norm2(f, x):
@@ -148,10 +146,8 @@ def find_optimal_number_of_basis_functions():
     return
 
 
-def a_single_plot():
+def a_single_plot(n: int = 17):
     plt.figure(figsize=(4, 4))
-
-    n = 17
 
     fb = BSplineBasis(n=n)
     fit_saldana_lopez_vector(fb, if_plot=True)
@@ -162,14 +158,14 @@ def a_single_plot():
     plt.ylabel(r"$\nu I_\nu, \mathrm{nW\ m^{-2}\ sr^{-1}}$")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(PICS_DIR, "fit_SL_one_pic.png"), dpi=600)
+    # plt.savefig(os.path.join(PICS_DIR, "fit_SL_one_pic.png"), dpi=600)
     plt.show()
     return
 
 
 if __name__ == '__main__':
-    a_single_plot()
+    a_single_plot(8)
     # find_optimal_number_of_basis_functions()
     # plot_differences()
-    # check_densities()
+    # check_densities(BSplineBasis(n=8))
 

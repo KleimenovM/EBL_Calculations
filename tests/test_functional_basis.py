@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # test_b_spline_basis_function()
     plt.figure(figsize=(10, 6))
 
-    a_vector = np.random.rand(20)
+    a_vector = np.random.rand(8)
 
     plt.subplot(1, 2, 1)
     plt.title("ExpParabolic Basis")

@@ -6,7 +6,7 @@ from scipy.integrate import trapezoid, cumulative_trapezoid
 from scipy.interpolate import RegularGridInterpolator
 
 from config.constants import H0, C, OMEGA_M, OMEGA_DE, MPC_M
-from config.settings import DATA_SL_DIR, DATA_DIR
+from config.settings import DATA_SL_DIR, DATA_DIR, BS_SAMPLES_DIR
 from src.cross_section import gamma_gamma_cross_section, total_cross_section
 from src.ebl_photon_density import EBL, EBLBasis
 from src.interpolation_2D import interpolate, save_interpolator, plot_interpolated_values
@@ -194,7 +194,7 @@ class BasisOpticalDepth:
     def get(self, z0: float, e0: np.ndarray, vector=None):
         return vector @ self.get_basis_components(z0, e0)
 
-    def save(self, filename: str = None, folder=DATA_DIR):
+    def save(self, filename: str = None, folder=BS_SAMPLES_DIR):
         if filename is None:
             filename = self.name + ".pck"
         if self.empty:
