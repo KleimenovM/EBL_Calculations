@@ -3,9 +3,9 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 from src.ebl_photon_density import EBLBasis, EBLSaldanaLopez, EBL
-from src.functional_basis import FunctionalBasis, BSplineBasis, ExpParabolicBasis
+from src.functional_basis import FunctionalBasis, BSplineBasis
 from src.optical_depth import OpticalDepthInterpolator, OpticalDepth
-from tests.fit_saldana_lopez import fit_saldana_lopez_vector
+from analysis.fit_saldana_lopez import fit_saldana_lopez_vector
 
 
 def test_the_interpolator(ebl_model: EBL, z_value: float = 0.01):

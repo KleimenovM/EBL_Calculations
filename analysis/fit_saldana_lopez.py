@@ -1,12 +1,10 @@
-import os
-
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.integrate import trapezoid as integrate
+from scipy.optimize import minimize, minimize_scalar
 
-from src.ebl_photon_density import EBLSaldanaLopez, EBLBasis
+from src.ebl_photon_density import EBLSaldanaLopez, EBLBasis, EBL
 from src.functional_basis import FunctionalBasis, BSplineBasis
-
 
 
 def norm2(f, x):
@@ -69,9 +67,70 @@ def fit_saldana_lopez_vector(fb: FunctionalBasis = BSplineBasis(n=10, m=40000),
     return a, df / f
 
 
-def fit_saldana_lopez_evolution():
-    # TODO: write this function
-    return
+def fit_saldana_lopez_evolution(ebl_fb: EBL, if_plot: bool = False, if_show: bool = False):
+    ebl_SL = EBLSaldanaLopez()
+
+    lg_wvl_SL = ebl_SL.lg_wavelength
+    ebl_fb.low_lg_wvl, ebl_fb.high_lg_wvl = lg_wvl_SL[0], lg_wvl_SL[-1]
+
+    wvl = 10**np.linspace(lg_wvl_SL[0], lg_wvl_SL[-1], 1000)
+
+    # choice of z minimization band isbased on Stevecat sources z distribution (see test_steve_cat_dist.py)
+    z_points = 10**np.linspace(-2.5, 0, 500)
+
+    wvl_grid, z_grid = np.meshgrid(wvl, z_points, indexing='ij')
+
+    def minimizer(a):
+        ebl_fb.f_evol = a[0]
+        ebl_fb.f_wvl = a[1]
+
+        fb_res = ebl_fb.intensity(wvl=wvl_grid, z=z_grid)
+        sl_res = ebl_SL.intensity(wvl=wvl_grid, z=z_grid)
+
+        return np.sum(np.abs(fb_res - sl_res))
+
+    # m = minimize_scalar(minimizer, tol=1e-2).x
+    # m = minimize(minimizer, x0=np.array([0, 0]), tol=1e-2, method='COBYLA').x
+    m = [-0.57019355,  0.36468159]  # absolute error optimized
+    # m = [-0.47695498,   0.34817781]  # abs error optimize
+    # m = [-2.21679876,  0.87290781]  # relative error optimized
+    # m = [-0.79045985,  0.44385302]  # linear scale optimization
+
+    if if_plot:
+        print(m)
+
+        z_ks = [0.01, 0.033, 0.06, 0.1, 0.5, 0.9]
+
+        plt.figure(figsize=(12, 8))
+        for i, z_k in enumerate(z_ks):
+            plt.subplot(2, 3, i+1)
+            plt.title(f"z = {z_k:.3f}")
+            plt.plot(wvl, ebl_SL.intensity(wvl=wvl, z=z_k), color='black', linestyle='--')
+            plt.plot(wvl, ebl_SL.intensity(wvl=wvl, z=0), color='black', linestyle=':')
+
+            ebl_fb.f_evol = 0.0
+            ebl_fb.f_wvl = 0.0
+            plt.plot(wvl, ebl_fb.intensity(wvl=wvl, z=z_k), label="B-spline fit 0", color='blue')
+            delta0 = np.sum((ebl_fb.intensity(wvl=wvl, z=z_k) - ebl_SL.intensity(wvl=wvl, z=z_k))**2)
+
+            ebl_fb.f_evol = m[0]
+            ebl_fb.f_wvl = m[1]
+            plt.plot(wvl, ebl_fb.intensity(wvl=wvl, z=z_k), label="B-spline fit 1", color='red')
+            delta1 = np.sum((ebl_fb.intensity(wvl=wvl, z=z_k) - ebl_SL.intensity(wvl=wvl, z=z_k))**2)
+
+            print(f"d0 = {delta0*1e16:.2f}, d1 = {delta1*1e16:.2f}")
+
+            plt.legend()
+            plt.xscale('log')
+
+        plt.tight_layout()
+
+        if if_show:
+            plt.show()
+
+    ebl_fb.f_evol = m[0]
+    ebl_fb.f_wvl = m[1]
+    return ebl_fb
 
 
 def plot_differences():
@@ -164,8 +223,10 @@ def a_single_plot(n: int = 17):
 
 
 if __name__ == '__main__':
-    a_single_plot(8)
+    # a_single_plot(8)
     # find_optimal_number_of_basis_functions()
     # plot_differences()
     # check_densities(BSplineBasis(n=8))
-
+    fb = BSplineBasis(n=8)
+    ebl_fb_model = EBLBasis(fb, v=fit_saldana_lopez_vector(fb)[0])
+    fit_saldana_lopez_evolution(ebl_fb=ebl_fb_model)
