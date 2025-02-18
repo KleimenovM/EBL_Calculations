@@ -1,8 +1,11 @@
+import os
+
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.integrate import trapezoid as integrate
 from scipy.optimize import minimize, minimize_scalar
 
+from config.settings import PICS_DIR
 from src.ebl_photon_density import EBLSaldanaLopez, EBLBasis, EBL
 from src.functional_basis import FunctionalBasis, BSplineBasis
 
@@ -67,7 +70,8 @@ def fit_saldana_lopez_vector(fb: FunctionalBasis = BSplineBasis(n=10, m=40000),
     return a, df / f
 
 
-def fit_saldana_lopez_evolution(ebl_fb: EBL, if_plot: bool = False, if_show: bool = False):
+def fit_saldana_lopez_evolution(ebl_fb: EBLBasis,
+                                if_plot: bool = False, if_show: bool = False, if_save=False):
     ebl_SL = EBLSaldanaLopez()
 
     lg_wvl_SL = ebl_SL.lg_wavelength
@@ -124,6 +128,9 @@ def fit_saldana_lopez_evolution(ebl_fb: EBL, if_plot: bool = False, if_show: boo
             plt.xscale('log')
 
         plt.tight_layout()
+
+        if if_save:
+            plt.savefig(os.path.join(PICS_DIR, 'saldana_lopez_evolution.png'))
 
         if if_show:
             plt.show()
@@ -228,5 +235,8 @@ if __name__ == '__main__':
     # plot_differences()
     # check_densities(BSplineBasis(n=8))
     fb = BSplineBasis(n=8)
-    ebl_fb_model = EBLBasis(fb, v=fit_saldana_lopez_vector(fb)[0])
-    fit_saldana_lopez_evolution(ebl_fb=ebl_fb_model)
+    v = fit_saldana_lopez_vector(fb, if_plot=False, if_show=False)[0]
+    print(np.min(v), np.max(v), np.mean(v))
+    # plt.show()
+    # ebl_fb_model = EBLBasis(fb, v=v)
+    # ebl_fb_model = fit_saldana_lopez_evolution(ebl_fb=ebl_fb_model, if_plot=True, if_show=True, if_save=False)

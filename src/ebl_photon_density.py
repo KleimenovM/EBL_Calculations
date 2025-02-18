@@ -148,8 +148,8 @@ class EBLBasis(EBL):
                  v: np.ndarray = None, cmb_on: bool = False,
                  f_evol=0.0, f_wvl=0.0):
         super().__init__(cmb_on)
-        self.basis = basis
-        self.dim = basis.n
+        self.basis: FunctionalBasis = basis
+        self.dim: int = basis.n
 
         if v is None:
             v = np.zeros(self.dim)
