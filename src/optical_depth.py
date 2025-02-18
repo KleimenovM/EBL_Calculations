@@ -31,7 +31,7 @@ class OpticalDepth:
         :param z: [DL], redshift
         :return: [m], dL/dz[z]
         """
-        return C / H0 / (1 + z) * (OMEGA_DE + OMEGA_M * (1 + z)**3)**(-1/2) * MPC_M
+        return C / H0 / (1 + z) * (OMEGA_DE + OMEGA_M * (1 + z) ** 3) ** (-1 / 2) * MPC_M
 
     def angle_integration(self, e0, z, e_mu_matrix, mu_matrix):
         """
@@ -61,7 +61,7 @@ class OpticalDepth:
         e_line = 10 ** lg_e_line  # [eV], background photons energy
 
         z_matrix, lg_e_z_matrix = np.meshgrid(z_line, lg_e_line, indexing='ij')  # [DL], [DL]
-        e_z_matrix = 10**lg_e_z_matrix  # [eV]
+        e_z_matrix = 10 ** lg_e_z_matrix  # [eV]
 
         density_matrix = self.ebl_model.density_e(e_z_matrix, z_matrix)
 
@@ -92,7 +92,7 @@ class OpticalDepthInterpolator:
             lg_e0_range = [10.5, 13.5]  # [eV], incident photon energies
         self.n_e0 = n_e0
         self.lg_e0 = np.linspace(lg_e0_range[0], lg_e0_range[1], self.n_e0)
-        self.e0 = 10**self.lg_e0
+        self.e0 = 10 ** self.lg_e0
 
         # OpticalDepth parameters
         self.optical_depth = optical_depth
@@ -112,7 +112,7 @@ class OpticalDepthInterpolator:
         """
         od_table = np.zeros([self.n_z0, self.n_e0])
         for i, e_0i in enumerate(self.e0):
-            v = self.optical_depth.get(e0=e_0i, z0=self.z0, n_z=self.n_z0+1,
+            v = self.optical_depth.get(e0=e_0i, z0=self.z0, n_z=self.n_z0 + 1,
                                        n_e=self.n_e, n_mu=self.n_mu)
             od_table[:, i] = v
         return od_table
@@ -123,6 +123,16 @@ class OpticalDepthInterpolator:
         :return: <RegularGridInterpolator>
         """
         return interpolate(x=self.z0_line, y=self.lg_e0, z=self.od_table, if_log_z=False, bounds_error=False)
+
+    def get(self, z0, lg_e0, parameter: float = 1.0):
+        """
+        Get the optical depth at the given z0 for a given energies
+        :param z0: redshifts (float / np.array)
+        :param lg_e0: (float / np.array)
+        :param parameter: (float)
+        :return: Optical depth at z0 and lg_e0
+        """
+        return self.interpolator((z0, lg_e0)) * parameter
 
     def save(self, filename: str = 'interp.pck', folder=DATA_DIR):
         """
@@ -181,18 +191,18 @@ class BasisOpticalDepth:
         self.empty = False
         return
 
-    def get_basis_components(self, z0: float, e0: np.ndarray):
-        final_matrix = np.zeros([self.dim, e0.size])
+    def get_basis_components(self, z0: float, lg_e0: np.ndarray):
+        final_matrix = np.zeros([self.dim, lg_e0.size])
 
-        z_line = z0 * np.ones(e0.size)
+        z_line = z0 * np.ones(lg_e0.size)
 
         for i in range(self.dim):
-            final_matrix[i] = self.interpolator[i]((z_line, e0))
+            final_matrix[i] = self.interpolator[i]((z_line, lg_e0))
 
         return final_matrix
 
-    def get(self, z0: float, e0: np.ndarray, vector=None):
-        return vector @ self.get_basis_components(z0, e0)
+    def get(self, z0: float, lg_e0: np.ndarray, parameter=None):
+        return parameter @ self.get_basis_components(z0, lg_e0)
 
     def save(self, filename: str = None, folder=BS_SAMPLES_DIR):
         if filename is None:
@@ -205,6 +215,13 @@ class BasisOpticalDepth:
         with open(path, "wb") as pickle_file:
             pickle.dump(self, pickle_file)
         return
+
+
+def load_basis_optical_depth(n: int):
+    file_pck = os.path.join(BS_SAMPLES_DIR, f"BSpline_{n}.pck")
+    with open(file_pck, "rb") as f:
+        bod: BasisOpticalDepth = pickle.load(f)
+    return bod
 
 
 if __name__ == '__main__':
