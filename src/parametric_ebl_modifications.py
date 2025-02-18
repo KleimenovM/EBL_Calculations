@@ -134,8 +134,8 @@ class ParametricModification:
         return op_SL_model, sampler.get_chain(discard=200, thin=25, flat=True)
 
 
-def save_as_pck_mrg(n, nwalkers, nsteps, data):
+def save_as_pck(n, nwalkers, nsteps, data, mode):
     t = time.strftime("%Y%m%d")
-    with open(os.path.join(MCMC_DIR, f"{t}_mrg_{n}n_{nwalkers}w_{nsteps}st.pck"), "wb") as pickle_file:
+    with open(os.path.join(MCMC_DIR, f"{t}_{mode}_{n}n_{nwalkers}w_{nsteps}st.pck"), "wb") as pickle_file:
         pck.dump(data, pickle_file)
     return
