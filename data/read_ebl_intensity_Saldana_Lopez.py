@@ -92,12 +92,12 @@ def main():
     f_plus = interpolate(x=redshift, y=lg_wvl, z=inten + delta_inten, if_log_z=True)
     f_minus = interpolate(x=redshift, y=lg_wvl, z=inten - delta_inten, if_log_z=True)
 
-    # save_interpolator(x=redshift, y=lg_wvl, interpolator=f,
-    #                   folder=DATA_SL_DIR, filename="interpolated_intensity_SL.pck")
-    # save_interpolator(x=redshift, y=lg_wvl, interpolator=f_plus,
-    #                   folder=DATA_SL_DIR, filename="interpolated_intensity_SL_upper.pck")
-    # save_interpolator(x=redshift, y=lg_wvl, interpolator=f_minus,
-    #                   folder=DATA_SL_DIR, filename="interpolated_intensity_SL_lower.pck")
+    save_interpolator(x=redshift, y=lg_wvl, interpolator=f,
+                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL.pck")
+    save_interpolator(x=redshift, y=lg_wvl, interpolator=f_plus,
+                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL_upper.pck")
+    save_interpolator(x=redshift, y=lg_wvl, interpolator=f_minus,
+                      folder=DATA_SL_DIR, filename="interpolated_intensity_SL_lower.pck")
 
     plot_and_compare(redshift, lg_wvl, log10_eps(inten), f_plus, True)
 
