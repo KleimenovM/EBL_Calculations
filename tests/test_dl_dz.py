@@ -55,7 +55,7 @@ def plot_l_z():
     plt.grid(linestyle='--', color="lightgrey")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(PICS_DIR, "l_of_z.png"), dpi=400)
+    # plt.savefig(os.path.join(PICS_DIR, "l_of_z.png"), dpi=400)
     plt.show()
 
 

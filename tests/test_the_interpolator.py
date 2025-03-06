@@ -28,7 +28,7 @@ def compare_bs_and_sl():
     ebl_sl1 = EBLSaldanaLopez(if_err=-1)
     ebl_sl2 = EBLSaldanaLopez(if_err=1)
 
-    z_value = 0.7
+    z_value = 0.1
     e, v0 = test_the_interpolator(ebl_model, z_value=z_value)
     e, v1 = test_the_interpolator(ebl_sl, z_value=z_value)
     _, vp = test_the_interpolator(ebl_sl1, z_value=z_value)

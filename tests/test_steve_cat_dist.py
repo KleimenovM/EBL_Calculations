@@ -12,11 +12,12 @@ def test_steve_cat_dist():
 
     plt.figure(figsize=(8, 6))
     ax = plt.subplot(1, 1, 1)
-    ax2 = ax.twinx()
-    sns.kdeplot(np.log10(z), ax=ax2, color='orange', fill=False)
-    sns.histplot(np.log10(z), ax=ax, bins=25)
-    ax.set_yscale('log')
-    ax2.set_yscale('log')
+    # ax2 = ax.twinx()
+    z_param = z
+    # sns.kdeplot(z_param, ax=ax2, color='orange', fill=False)
+    sns.histplot(z_param, ax=ax, bins=50, linewidth=0, alpha=.5)
+    # ax.set_yscale('log')
+    # ax2.set_yscale('log')
     plt.show()
     return
 

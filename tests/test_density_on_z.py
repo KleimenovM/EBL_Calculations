@@ -43,7 +43,7 @@ def test_density_on_z():
 
     # plt.savefig(PICS_DIR + "/density_on_z.pdf")
     plt.tight_layout()
-    plt.savefig(PICS_DIR + "/density_on_z2.png", transparent=True, dpi=600)
+    # plt.savefig(PICS_DIR + "/density_on_z2.png", transparent=True, dpi=600)
 
     plt.show()
 

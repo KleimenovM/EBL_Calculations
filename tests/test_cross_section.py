@@ -24,7 +24,8 @@ def plot_nice():
     for i, z0 in enumerate([0]):
         colors = [ColorsM, ColorsR, ColorsB]
         for j, e0 in enumerate(e0_line):
-            sigmas = gamma_gamma_cross_section(e0, e, z0, mu_line) / SIGMA_TH
+            e0 *= (1 + z0)
+            sigmas = gamma_gamma_cross_section(e0, e, mu_line) / SIGMA_TH
             # plt.polar(theta_line, sigmas, color=colors[i][j], label=f"{round(e0 * 1e-12, 1)} TeV")
             # plt.polar(-theta_line, sigmas, color=colors[i][j])
             plt.polar(theta_line, factor * sigmas, color=colors[i][j], label=f"E = {round(e0 * 1e-12, 1)} TeV")

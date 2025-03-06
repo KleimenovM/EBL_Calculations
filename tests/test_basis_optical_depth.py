@@ -69,5 +69,5 @@ def test_load_basis_optical_depth(n: int = 8):
 
 
 if __name__ == '__main__':
-    # test_save_basis_optical_depth(n=17)
-    test_load_basis_optical_depth()
+    test_save_basis_optical_depth(n=8)
+    # test_load_basis_optical_depth()
