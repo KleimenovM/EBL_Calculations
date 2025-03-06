@@ -32,16 +32,16 @@ def full_log_norm(x, mu, sigma):
     return -(x - mu) ** 2 / (2 * sigma ** 2) - 0.5 * np.log(2 * np.pi * sigma ** 2)
 
 
-def log_uniform(x, center, halfwidth):
+def log_uniform(x, center, half_width):
     """
     Calculate the log pdf of a uniform distribution
     :param x: value
     :param center: center of a uniform distribution
-    :param halfwidth: halfwidth of a uniform distribution
+    :param half_width: half-width of a uniform distribution
     :return: log(1/2hw) if x is in the uniform distribution, -np.inf otherwise
     """
-    return 0 if abs(x - center) < halfwidth else - np.inf
+    return 0 if abs(x - center) < half_width else - np.inf
 
 
-def full_log_uniform(x, center, halfwidth):
-    return np.log(1 / (2 * halfwidth)) if abs(x - center) < halfwidth else -np.inf
+def full_log_uniform(x, center, half_width):
+    return np.log(1 / (2 * half_width)) if abs(x - center) < half_width else -np.inf

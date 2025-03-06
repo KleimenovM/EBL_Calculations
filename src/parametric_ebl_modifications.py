@@ -6,17 +6,39 @@ import emcee as emc
 import numpy as np
 
 from config.settings import MCMC_DIR
-from src.likelihood_elements import log_uniform, log_likelihood_single_source, log_norm
+from src.likelihood_elements import log_likelihood_single_source, log_uniform, log_norm
 from src.source_base import Source
 from src.source_spectra import GreauxModel
 
 
-class ParametricModel:
+class FluxModel:
     def __init__(self, optical_depth_model,
                  source: Source, gm: GreauxModel):
         self.optical_depth_model = optical_depth_model
         self.gm = gm
         self.source = source
+
+    def __call__(self, *args, **kwargs):
+        return 1.0
+
+
+class NoEpsParametricModel(FluxModel):
+    def __init__(self, optical_depth_model, source: Source, gm: GreauxModel):
+        super().__init__(optical_depth_model, source, gm)
+        self.tau = optical_depth_model.get(source.z, source.lg_e_ref, parameter=None)
+
+    def __call__(self, e, parameters):
+        return np.exp(-parameters[:-4] @ self.tau) * self.gm.get(e, *parameters[-4:])
+
+    def get(self, e, parameters):
+        lg_e = np.log10(e)
+        tau = self.optical_depth_model.get(self.source.z, lg_e, parameter=parameters[:-4])
+        return (np.exp(-tau) * self.gm.get(e, *parameters[-4:]))[0]
+
+
+class ParametricModel(FluxModel):
+    def __init__(self, optical_depth_model, source: Source, gm: GreauxModel):
+        super().__init__(optical_depth_model, source, gm)
 
     def __call__(self, e, parameters):
         # unpack source parameters
@@ -41,30 +63,26 @@ class ParametricModel:
 class ParametricModification:
     def __init__(self, flux_model, optical_depth_model,
                  theta0: list[float] = None, sigmas: list[float] = None, dist_type: list[str] = None,
-                 mean: float = None, width: float = None,
+                 start_value = None, mean: float = None, width: float = None,
                  fitting_vector=None, roughness=0.5,
                  nwalkers: int = 32, nsteps: int = 5000):
+
         if mean is None or width is None:
             self.vdim = fitting_vector.shape[0]
             mean, width = self.define_fitting_bounds(fitting_vector, roughness)
         else:
             self.vdim = 1
 
-        if theta0 is None:
-            theta0 = [mean] * self.vdim + [2.0, 0.0, 0.0, 0.0, 0.0]
-        if sigmas is None:
-            sigmas = [width] * self.vdim + [3.0, 2.0, 4.0, 2.0, 0.01]
-        if dist_type is None:
-            dist_type = ['u'] * self.vdim + ['u', 'u', 'u', 'u', 'n']
-
-        self.theta0 = np.array(theta0)
+        self.theta0 = np.array([mean] * self.vdim + [2.0, 0.0, 0.0, 0.0]) if theta0 is None else np.array(theta0)
         self.ndim = self.theta0.shape[0]
+        print(self.ndim)
 
-        self.sigmas = np.array(sigmas)
+        self.sigmas = np.array([width] * self.vdim + [3.0, 2.0, 4.0, 2.0]) if sigmas is None else np.array(sigmas)
+
         if self.sigmas.shape[0] != self.ndim:
             raise TypeError("Sigmas must have same shape as theta0")
 
-        self.dist_type = dist_type
+        self.dist_type = ['u'] * self.vdim + ['u', 'u', 'u', 'u'] if dist_type is None else dist_type
         if len(self.dist_type) != self.ndim:
             raise TypeError("Dist_type must have same shape as theta0")
 
@@ -73,6 +91,12 @@ class ParametricModification:
 
         self.nwalkers = nwalkers
         self.nsteps = nsteps
+
+        self.start_vector = self.theta0.copy()
+        if start_value is not None:
+            self.start_vector[:self.vdim] = start_value
+        self.start = self.start_vector + 0.5 * self.sigmas * np.random.randn(self.nwalkers, self.ndim)
+
         return
 
     @staticmethod
@@ -114,7 +138,7 @@ class ParametricModification:
         return lp + log_likelihood_single_source(source=source, model=model)
 
     def run(self, source: Source):
-        pos = self.theta0 + self.sigmas / 2 * np.random.randn(self.nwalkers, self.ndim)
+        pos = self.start
 
         gm = GreauxModel(name=source.title,
                          phi0=source.phi0,
@@ -131,11 +155,15 @@ class ParametricModification:
 
         sampler.run_mcmc(pos, self.nsteps, progress=True)
 
-        return op_SL_model, sampler.get_chain(discard=200, thin=25, flat=True)
+        return op_SL_model, sampler.get_chain(discard=int(0.2 * self.nsteps), thin=25, flat=True)
 
 
-def save_as_pck(n, nwalkers, nsteps, data, mode):
+def save_as_pck(n, nwalkers, nsteps, data, mode, folder: str = None):
     t = time.strftime("%Y%m%d")
-    with open(os.path.join(MCMC_DIR, f"{t}_{mode}_{n}n_{nwalkers}w_{nsteps}st.pck"), "wb") as pickle_file:
+    if folder is None:
+        folder = MCMC_DIR
+
+    with open(os.path.join(folder, f"{t}_{mode}_{n}n_{nwalkers}w_{nsteps}st.pck"), "wb") as pickle_file:
         pck.dump(data, pickle_file)
+
     return

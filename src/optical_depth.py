@@ -124,7 +124,7 @@ class OpticalDepthInterpolator:
         """
         return interpolate(x=self.z0_line, y=self.lg_e0, z=self.od_table, if_log_z=False, bounds_error=False)
 
-    def get(self, z0, lg_e0, parameter: float = 1.0):
+    def get(self, z0, lg_e0, parameter: float = None):
         """
         Get the optical depth at the given z0 for a given energies
         :param z0: redshifts (float / np.array)
@@ -132,7 +132,9 @@ class OpticalDepthInterpolator:
         :param parameter: (float)
         :return: Optical depth at z0 and lg_e0
         """
-        return self.interpolator((z0, lg_e0)) * parameter
+        if parameter is None:
+            parameter = 1.0
+        return np.array([self.interpolator((z0, lg_e0)) * parameter])
 
     def save(self, filename: str = 'interp.pck', folder=DATA_DIR):
         """
@@ -202,6 +204,8 @@ class BasisOpticalDepth:
         return final_matrix
 
     def get(self, z0: float, lg_e0: np.ndarray, parameter=None):
+        if parameter is None:
+            parameter = self.unit_matrix
         return parameter @ self.get_basis_components(z0, lg_e0)
 
     def save(self, filename: str = None, folder=BS_SAMPLES_DIR):
