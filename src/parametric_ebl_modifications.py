@@ -75,7 +75,6 @@ class ParametricModification:
 
         self.theta0 = np.array([mean] * self.vdim + [2.0, 0.0, 0.0, 0.0]) if theta0 is None else np.array(theta0)
         self.ndim = self.theta0.shape[0]
-        print(self.ndim)
 
         self.sigmas = np.array([width] * self.vdim + [3.0, 2.0, 4.0, 2.0]) if sigmas is None else np.array(sigmas)
 
