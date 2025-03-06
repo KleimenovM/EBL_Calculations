@@ -87,6 +87,7 @@ def fit_saldana_lopez_evolution(ebl_fb: EBLBasis,
     def minimizer(a):
         ebl_fb.f_evol = a[0]
         ebl_fb.f_wvl = a[1]
+        ebl_fb.f2_wvl = a[2]
 
         fb_res = ebl_fb.intensity(wvl=wvl_grid, z=z_grid)
         sl_res = ebl_SL.intensity(wvl=wvl_grid, z=z_grid)
@@ -94,11 +95,12 @@ def fit_saldana_lopez_evolution(ebl_fb: EBLBasis,
         return np.sum(np.abs(fb_res - sl_res))
 
     # m = minimize_scalar(minimizer, tol=1e-2).x
-    # m = minimize(minimizer, x0=np.array([0, 0]), tol=1e-2, method='COBYLA').x
-    m = [-0.57019355,  0.36468159]  # absolute error optimized
-    # m = [-0.47695498,   0.34817781]  # abs error optimize
+    # m = minimize(minimizer, x0=np.array([0, 0, 0]), tol=1e-2, method='COBYLA').x
+    m = [-0.26511206, - 0.10440667,  0.17380359]  # absolute error 3 parameter
+    # mr = [-0.57019355,  0.36468159, 0]  # absolute error optimized
+    mr = [-0.47695498,   0.34817781, 0]  # abs error optimize
     # m = [-2.21679876,  0.87290781]  # relative error optimized
-    # m = [-0.79045985,  0.44385302]  # linear scale optimization
+    mr = [-0.79045985,  0.44385302, 0]  # linear scale optimization
 
     if if_plot:
         print(m)
@@ -114,15 +116,23 @@ def fit_saldana_lopez_evolution(ebl_fb: EBLBasis,
 
             ebl_fb.f_evol = 0.0
             ebl_fb.f_wvl = 0.0
+            ebl_fb.f2_wvl = 0.0
             plt.plot(wvl, ebl_fb.intensity(wvl=wvl, z=z_k), label="B-spline fit 0", color='blue')
             delta0 = np.sum((ebl_fb.intensity(wvl=wvl, z=z_k) - ebl_SL.intensity(wvl=wvl, z=z_k))**2)
 
+            ebl_fb.f_evol = mr[0]
+            ebl_fb.f_wvl = mr[1]
+            ebl_fb.f2_wvl = mr[2]
+            plt.plot(wvl, ebl_fb.intensity(wvl=wvl, z=z_k), label="B-spline fit 1", color='green')
+            delta1 = np.sum((ebl_fb.intensity(wvl=wvl, z=z_k) - ebl_SL.intensity(wvl=wvl, z=z_k)) ** 2)
+
             ebl_fb.f_evol = m[0]
             ebl_fb.f_wvl = m[1]
+            ebl_fb.f2_wvl = m[2]
             plt.plot(wvl, ebl_fb.intensity(wvl=wvl, z=z_k), label="B-spline fit 1", color='red')
-            delta1 = np.sum((ebl_fb.intensity(wvl=wvl, z=z_k) - ebl_SL.intensity(wvl=wvl, z=z_k))**2)
+            delta2 = np.sum((ebl_fb.intensity(wvl=wvl, z=z_k) - ebl_SL.intensity(wvl=wvl, z=z_k))**2)
 
-            print(f"d0 = {delta0*1e16:.2f}, d1 = {delta1*1e16:.2f}")
+            print(f"d0 = {delta0*1e16:.2f}, d1 = {delta1*1e16:.2f}, d2 = {delta2*1e16:.2f}")
 
             plt.legend()
             plt.xscale('log')
@@ -235,8 +245,8 @@ if __name__ == '__main__':
     # plot_differences()
     # check_densities(BSplineBasis(n=8))
     fb = BSplineBasis(n=8)
-    v = fit_saldana_lopez_vector(fb, if_plot=False, if_show=False)[0]
+    v = fit_saldana_lopez_vector(fb, z_fit=0.0, if_plot=False, if_show=False)[0]
     print(np.min(v), np.max(v), np.mean(v))
     # plt.show()
-    # ebl_fb_model = EBLBasis(fb, v=v)
-    # ebl_fb_model = fit_saldana_lopez_evolution(ebl_fb=ebl_fb_model, if_plot=True, if_show=True, if_save=False)
+    ebl_fb_model = EBLBasis(fb, v=v)
+    ebl_fb_model = fit_saldana_lopez_evolution(ebl_fb=ebl_fb_model, if_plot=True, if_show=True, if_save=False)
