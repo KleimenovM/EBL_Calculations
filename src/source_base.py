@@ -5,12 +5,15 @@ import matplotlib.pyplot as plt
 from astropy.table import Table
 
 from config.settings import ASTRO_SRC_DIR
+from src.ebl_photon_density import EBLSaldanaLopez
+from src.optical_depth import load_basis_optical_depth, OpticalDepthInterpolator, OpticalDepth
 
 
 class Source:
     def __init__(self, title: str, z: float,
                  e_ref: np.ndarray, dnde: np.ndarray,
-                 dnde_errn: np.ndarray, dnde_errp: np.ndarray):
+                 dnde_errn: np.ndarray, dnde_errp: np.ndarray,
+                 od_sl: OpticalDepthInterpolator = None):
         self.title: str = title
         self.z: float = z
         self.e_ref: np.ndarray = e_ref * 1e12  # TeV -> eV
@@ -22,18 +25,22 @@ class Source:
 
         self.e0 = np.sqrt(self.e_ref[0] * self.e_ref[-1])
         self.phi0 = np.sqrt(self.dnde[0] * self.dnde[-1])
+        if od_sl is not None:
+            self.phi0 *= np.exp(0.5 * (od_sl.get(z, self.lg_e_ref[0]) + od_sl.get(z, self.lg_e_ref[-1])))
 
-    def plot_spectrum(self, if_show: bool = False, if_scale: bool = False):
+    def plot_spectrum(self, ax, if_show: bool = False, if_scale: bool = False, xscale: float = 1.0):
         scale = 1.0
         if if_scale:
             scale = self.e_ref**2
-        plt.errorbar(self.e_ref, scale * self.dnde,
-                     yerr=[scale * self.dnde_errn, scale * self.dnde_errp], linestyle='', marker='o', color='red')
-        plt.plot(self.e_ref, self.phi0 * scale * (self.e_ref / self.e0)**(-2), color='black', linestyle='--')
-        plt.xscale('log')
-        plt.yscale('log')
+        ax.errorbar(self.e_ref * xscale, scale * self.dnde,
+                     yerr=[scale * self.dnde_errn, scale * self.dnde_errp],
+                     linestyle='', marker='o', color='red', label=f'measured')
+        ax.plot(self.e_ref * xscale, self.phi0 * scale * (self.e_ref / self.e0)**(-2),
+                 color='black', linestyle='--', label=r'$\gamma=-2$ spectrum')
+        ax.set_xscale('log')
+        ax.set_yscale('log')
         mod = 1.1
-        plt.xlim(self.e_ref[0] / mod, self.e_ref[-1] * mod)
+        ax.set_xlim(self.e_ref[0] * xscale / mod, self.e_ref[-1] * xscale * mod)
         if if_show:
             plt.show()
         return
@@ -67,6 +74,8 @@ class SourceBase:
     def import_all_the_sources(self):
         ref_table = Table.read(os.path.join(ASTRO_SRC_DIR, 'table_spectra.csv'))
 
+        odi = OpticalDepthInterpolator(optical_depth=OpticalDepth(ebl=EBLSaldanaLopez(), series_expansion=True))
+
         for line in ref_table:
             filename = f"{ASTRO_SRC_DIR}/{line['reference']}/{line['file_id']}.ecsv"
             spectrum = Table.read(filename)
@@ -79,7 +88,8 @@ class SourceBase:
                             z=z, e_ref=e_ref[real_values],
                             dnde=spectrum['dnde'][real_values].data,
                             dnde_errn=spectrum['dnde_errn'][real_values].data,
-                            dnde_errp=spectrum['dnde_errp'][real_values].data)
+                            dnde_errp=spectrum['dnde_errp'][real_values].data,
+                            od_sl=odi)
             if self.event_number_criterion(source) and self.rsh_criterion(source):
                 self.source_base.append(source)
 

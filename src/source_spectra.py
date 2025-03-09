@@ -73,9 +73,9 @@ class GreauxModel(SpectralModel):
     def __call__(self, energy):
         ee0 = energy / self.e0
         degree = self.eta - self.gamma * np.log(ee0) - self.beta * np.log(ee0)**2
-        return self.phi0 * np.exp(-degree) * np.exp(-self.lam * ee0)
+        return self.phi0 * np.exp(degree) * np.exp(-self.lam * ee0)
 
     def get(self, energy, gamma, beta, eta, lam):
         ee0 = energy / self.e0
-        degree = eta - gamma * np.log(ee0) - beta * np.log(ee0) ** 2
-        return self.phi0 * np.exp(-degree) * np.exp(-lam * ee0)
+        degree = eta - gamma * np.log(ee0) - beta * np.log(ee0)**2
+        return self.phi0 * np.exp(degree) * np.exp(-lam * ee0)
