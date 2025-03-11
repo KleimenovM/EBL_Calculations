@@ -6,8 +6,11 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.axis import Axis
-from scipy.interpolate import make_splrep
+from scipy.integrate import cumulative_simpson
+from scipy.interpolate import make_splrep, interp1d
 from scipy.stats import gaussian_kde
+
+from config.plotting import STD_colors, STD_cmaps
 
 from analysis.plot_spectra import plot_all_the_spectra
 from config.settings import MCMC_DIR, PICS_DIR
@@ -132,7 +135,7 @@ def one_parameter_sl_analysis(filename: str, min_var: list[float] = None):
 
     pdfs = np.ones([n, m])
     var = np.ones(n)
-    alphas = np.linspace(0, 3, m)
+    alphas = np.linspace(0, 1.5, m)
     for i, s in enumerate(sources):
         if i % 20 == 0:
             print(f"{i+1} sources processed")
@@ -153,12 +156,19 @@ def one_parameter_sl_analysis(filename: str, min_var: list[float] = None):
     print(f"Sources processed: {true_vars} sources")
     print(f"Posterior: {alphas[np.argmax(posteriors, axis=1)]}")
 
+    plt.figure(figsize=(10, 4))
     for j in range(k):
         norm_j = np.trapezoid(posteriors[j], alphas)
         normed_posterior_j = posteriors[j] / norm_j
-        plt.plot(alphas, normed_posterior_j, label=r'$\sigma_{min} = $'f'{min_var[j]:.2f}')
+        plt.subplot(1, 2, 1)
+        plt.plot(alphas, normed_posterior_j,
+                 color=STD_colors[0], linewidth=2)
+        plt.subplot(1, 2, 2)
+        plt.plot(alphas[1:], cumulative_simpson(normed_posterior_j, x=alphas))
+        plt.grid(linestyle='--', color="lightgrey")
+        plt.xlabel(r"$\alpha$")
 
-    plt.legend()
+    plt.tight_layout()
     plt.show()
 
     return
@@ -209,15 +219,15 @@ def study_means_and_stds(filename: str):
 
     plt.figure(figsize=(12, 4))
     plt.subplot(1, 3, 1)
-    plt.hist(means, bins=20, color='royalblue')
+    plt.hist(means, bins=20, color=STD_colors[0])
     plt.xlabel("mean")
 
     plt.subplot(1, 3, 2)
-    plt.hist(var, bins=20, color='orange')
+    plt.hist(var, bins=20, color=STD_colors[1])
     plt.xlabel("variance")
 
     plt.subplot(1, 3, 3)
-    plt.hist2d(means, var, 60, cmap='Greens')
+    plt.hist2d(means, var, 20, cmap=STD_cmaps[2], vmax=10, density=True)
     plt.xlabel("mean")
     plt.ylabel("variance")
 
@@ -227,8 +237,8 @@ def study_means_and_stds(filename: str):
 
 
 if __name__ == '__main__':
-    fn = "20250306_noeps_258n_32w_10000st.pck"
+    fn = "20250309_noeps_258n_32w_10000st.pck"
     study_means_and_stds(fn)
     # plot_12_pdfs_and_kdes(fn)
-    one_parameter_sl_analysis(fn, min_var=[0.01 + 0.01 * i**2 for i in range(0, 9)])
+    # one_parameter_sl_analysis(fn, min_var=[0.02])
     # find_a_source(filename="20250302_short_258n_32w_6000st.pck", name="1H 1013+498")
