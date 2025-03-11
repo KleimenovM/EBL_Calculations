@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy import units as u
-from gammapy.modeling.models import (
+"""from gammapy.modeling.models import (
     EBL_DATA_BUILTIN,
     EBLAbsorptionNormSpectralModel,
     Models,
     PowerLawSpectralModel,
     SkyModel,
-)
+)"""
 
 from config.settings import PICS_DIR, DATA_SL_DIR
 from src.ebl_photon_density import EBLSaldanaLopez, EBLSimple
@@ -113,8 +113,9 @@ def get_a_pres_plot():
     _, _, tau_interpolator = load_pck(DATA_SL_DIR, "interpolated_optical_depth_SL.pck")
 
     colors = ['#438086', '#53548A', '#A04DA3']
+    linestyles = ['solid', 'dashed', 'dotted']
 
-    plt.figure(figsize=(4, 6))
+    plt.figure(figsize=(8, 5))
 
     for i, z0 in enumerate([0.03, 0.14, 0.60]):
         res = np.zeros((2, n_e0))
@@ -125,30 +126,30 @@ def get_a_pres_plot():
         print(time.time() - t1)
         e1_line = e0_line * 1e-12
 
-        plt.subplot(2, 1, 1)
-        plt.plot(e1_line, res[0], label=f"$z_0$ = {z0}", linestyle="solid", color=colors[i])
+        plt.subplot(1, 2, 1)
+        plt.plot(e1_line, res[0], label=f"$z_0$ = {z0}", linestyle=linestyles[i], color=colors[i], linewidth=2)
 
-        plt.subplot(2, 1, 2)
-        plt.plot(e1_line, np.exp(-res[0]), label=f"$z_0$ = {z0}", color=colors[i], linestyle="solid")
+        plt.subplot(1, 2, 2)
+        plt.plot(e1_line, np.exp(-res[0]), label=f"$z_0$ = {z0}", color=colors[i], linestyle=linestyles[i], linewidth=2)
 
     for i in range(2):
-        plt.subplot(2, 1, i+1)
+        plt.subplot(1, 2, i+1)
         plt.xscale('log')
         plt.xlim(0.01, 30)
         plt.grid(linestyle='dashed', color='lightgray')
+        plt.legend()
+        plt.xlabel('E, TeV')
 
-    plt.subplot(2, 1, 1)
+    plt.subplot(1, 2, 1)
     plt.ylabel(r'optical depth, $\tau_{\gamma\gamma}$')
     plt.ylim(-0.2, 5.2)
 
-    plt.subplot(2, 1, 2)
-    plt.legend()
-    plt.xlabel('E, TeV')
-    plt.ylabel(r'EBL transparency, $e^{-\tau_{\gamma\gamma}}$')
+    plt.subplot(1, 2, 2)
+    plt.ylabel(r'transparency, $e^{-\tau_{\gamma\gamma}}$')
 
     plt.tight_layout()
 
-    plt.savefig(os.path.join(PICS_DIR, "optical_depth3.png"), dpi=600)
+    plt.savefig(os.path.join(PICS_DIR, "optical_depth4.pdf"), dpi=600)
     # plt.savefig(os.path.join(PICS_DIR, "optical_depth2.pdf"))
     plt.show()
     return

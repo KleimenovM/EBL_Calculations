@@ -1,5 +1,6 @@
 import os
 
+import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
@@ -22,14 +23,14 @@ def get_sl_interpolators(z0_max: float = 1.0):
 
 
 def check_one_source(n: list[int], attenuation: bool = False):
-    sb = SourceBase(if_min_evt=True, min_evt=8)
+    sb = SourceBase(if_min_evt=True, min_evt=5)
     print(sb.n)
     zs = np.zeros(sb.n)
     for i in range(sb.n):
         zs[i] = sb(i).z
     print(max(zs))
 
-    colors = ['darkred', 'darkgreen']
+    colors = ['#438086', '#A04DA3']
     loc = [1, 3]
 
     if attenuation:
@@ -46,17 +47,19 @@ def check_one_source(n: list[int], attenuation: bool = False):
                           alpha=2 ** (-attenuation), label=f"observed")
 
         if attenuation:
-            lg_e, u, du_m, du_p = deconvolute_the_source(s, od0)
+            lg_e, u, du_m, du_p = deconvolve_the_source(s, od0)
             p2 = plt.errorbar(10 ** (lg_e - 12), u, yerr=[du_m, du_p], linestyle='', marker='s', color=colors[i],
                               label=f"{s.title}, intrinsic")
 
             legend1 = plt.legend([p0, p1, p2], [f"{s.title}\nz={np.round(s.z, 3)}", "observed", "intrinsic"],
-                                 loc=loc[i], framealpha=0.0)
+                                 loc=loc[i])
             plt.gca().add_artist(legend1)
 
         if not attenuation:
-            legend1 = plt.legend([p0, p1], [f"{s.title}\nz={np.round(s.z, 3)}", "observed"], loc=loc[i], framealpha=0.0)
+            legend1 = plt.legend([p0, p1], [f"{s.title}\nz={np.round(s.z, 3)}", "observed"], loc=loc[i])
             plt.gca().add_artist(legend1)
+
+        s.plot_spectrum(ax=plt.gca(), xscale=1e-12)
 
     plt.xscale('log')
     plt.xlabel('$E,$ TeV')
@@ -66,7 +69,7 @@ def check_one_source(n: list[int], attenuation: bool = False):
     return
 
 
-def deconvolute_the_source(s: Source, od0: RegularGridInterpolator, slice_last: bool = False):
+def deconvolve_the_source(s: Source, od0: RegularGridInterpolator, slice_last: bool = False):
     t0 = od0((s.z, s.lg_e_ref))
     e, v, vm, vp = s.e_ref, s.dnde, s.dnde_errn, s.dnde_errp
 
@@ -120,7 +123,7 @@ def calculate_for_sources(a0: int = 1):
         colors = ['#A04DA3', '#53548A', '#438086']
         loc = [1, 3]
 
-        lg_e, u, du_m, du_p = deconvolute_the_source(s, od[1 + a0], is_in_wrong_list(i))
+        lg_e, u, du_m, du_p = deconvolve_the_source(s, od[1 + a0], is_in_wrong_list(i))
         p, ers = parabolic_fit(lg_e, u, du_m, du_p)
 
         lg_e = np.copy(lg_e) - 12
@@ -165,21 +168,42 @@ def calculate_for_sources(a0: int = 1):
     return
 
 
-def make_a_nice_picture():
-    plt.figure(figsize=(4, 4))
-    check_one_source([23, 1], True)
+def test_steve_cat_dist(ax):
+    sb = SourceBase()
+    z = np.zeros(sb.n)
+    for i in range(sb.n):
+        z[i] = sb(i).z
 
-    plt.xlim(0.1, 20)
+    z_param = z
+    colors = ['#438086', '#53548A', '#A04DA3']
+    sns.histplot(z_param, ax=ax, bins=50, linewidth=0, alpha=.7, color=colors[1])
+    ax.set_yscale('log')
+    ax.set_xlabel(r"$z$")
+    ax.grid(linestyle='--', color='lightgrey')
+    return
+
+
+def make_a_nice_picture():
+    plt.figure(figsize=(8, 5))
+    plt.subplot(1, 2, 1)
+    check_one_source([23, 1], True)
+    plt.xlim(0.05, 20)
+    plt.grid(linestyle='--', color='lightgrey')
     # plt.legend(fancybox=True, framealpha=0.0)
 
+    ax2 = plt.subplot(1, 2, 2)
+    test_steve_cat_dist(ax2)
+
     plt.tight_layout()
-    # plt.savefig(os.path.join(PICS_DIR, "double-stevecat-source-no-attenuation.png"), dpi=600, transparent=True)
+    plt.savefig(os.path.join(PICS_DIR, "double-stevecat-source-no-attenuation.pdf"), dpi=600, transparent=True)
     plt.show()
     return
 
 
 if __name__ == '__main__':
-    make_a_nice_picture()
+    # make_a_nice_picture()
     # calculate_for_sources(1)
     # calculate_for_sources(0)
     # calculate_for_sources(-1)
+    check_one_source([31], True)
+    plt.show()

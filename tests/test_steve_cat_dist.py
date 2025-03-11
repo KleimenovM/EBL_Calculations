@@ -14,10 +14,12 @@ def test_steve_cat_dist():
     ax = plt.subplot(1, 1, 1)
     # ax2 = ax.twinx()
     z_param = z
+    colors = ['#438086', '#53548A', '#A04DA3']
     # sns.kdeplot(z_param, ax=ax2, color='orange', fill=False)
-    sns.histplot(z_param, ax=ax, bins=50, linewidth=0, alpha=.5)
-    # ax.set_yscale('log')
+    sns.histplot(z_param, ax=ax, bins=50, linewidth=0, alpha=.7, color=colors[1])
+    ax.set_yscale('log')
     # ax2.set_yscale('log')
+    plt.grid(linestyle='--', color='lightgrey')
     plt.show()
     return
 

@@ -19,13 +19,13 @@ def plot_nice():
     theta_line = np.arccos(mu_line)
     factor = (1 - mu_line) / 2
 
-    fontsize = 14
-    plt.figure(figsize=(7, 7))
+    fontsize = 12
+    plt.figure(figsize=(6, 6))
     for i, z0 in enumerate([0]):
         colors = [ColorsM, ColorsR, ColorsB]
         for j, e0 in enumerate(e0_line):
             e0 *= (1 + z0)
-            sigmas = gamma_gamma_cross_section(e0, e, mu_line) / SIGMA_TH
+            sigmas = gamma_gamma_cross_section(e0, e, z0, mu_line) / SIGMA_TH
             # plt.polar(theta_line, sigmas, color=colors[i][j], label=f"{round(e0 * 1e-12, 1)} TeV")
             # plt.polar(-theta_line, sigmas, color=colors[i][j])
             plt.polar(theta_line, factor * sigmas, color=colors[i][j], label=f"E = {round(e0 * 1e-12, 1)} TeV")
@@ -35,7 +35,7 @@ def plot_nice():
 
     plt.tight_layout()
     # plt.savefig("../pics/cross-sections.png")
-    # plt.savefig("../pics/cross-sections.pdf")
+    plt.savefig("../pics/cross-sections.pdf")
     plt.show()
     return
 
@@ -48,6 +48,7 @@ def test_cross_section():
     mu_line = np.linspace(-1, 1, n)[:n-1]  # [DL], cosines
     theta_line = np.arccos(mu_line)
     factor = (1 - mu_line) / 2
+
 
     fontsize = 12
     plt.figure(figsize=(15, 10))
