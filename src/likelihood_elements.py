@@ -5,15 +5,14 @@ from src.source_base import Source
 def log_likelihood_single_source(source: Source, model: np.ndarray):
     """
     Calculates the log-likelihood for a single source given a model and observed data.
-
     :param source: [Source] An instance of the `Source` class containing observed `dnde`
         data, upper errors (`dnde_errp`), and lower errors (`dnde_errn`).
     :param model: [numpy.array] the predicted `dnde` values of the model corresponding to the observation points
     :return: [float]  the negative total log-likelihood based on the observed data and model predictions
     """
     delta = model - source.dnde
-    log_likelihood_plus = np.heaviside(delta, 0.5) * 0.5 * (delta / source.dnde_errp) ** 2
-    log_likelihood_minus = np.heaviside(-delta, 0.5) * 0.5 * (delta / source.dnde_errn) ** 2
+    log_likelihood_plus = np.heaviside(delta, 0.5) * (delta / source.dnde_errp) ** 2
+    log_likelihood_minus = np.heaviside(-delta, 0.5) * (delta / source.dnde_errn) ** 2
     return - np.sum(log_likelihood_plus + log_likelihood_minus)
 
 

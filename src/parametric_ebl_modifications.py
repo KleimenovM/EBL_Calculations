@@ -65,7 +65,7 @@ class ParametricModification:
                  theta0: list[float] = None, sigmas: list[float] = None, dist_type: list[str] = None,
                  start_value = None, mean: float = None, width: float = None,
                  fitting_vector=None, roughness=0.5,
-                 nwalkers: int = 32, nsteps: int = 5000):
+                 nwalkers: int = 32, nsteps: int = 5000, thin: int = 25):
 
         if mean is None or width is None:
             self.vdim = fitting_vector.shape[0]
@@ -90,6 +90,7 @@ class ParametricModification:
 
         self.nwalkers = nwalkers
         self.nsteps = nsteps
+        self.thin = thin
 
         self.start_vector = self.theta0.copy()
         if start_value is not None:
@@ -136,7 +137,7 @@ class ParametricModification:
         model = model(source.e_ref, theta)
         return lp + log_likelihood_single_source(source=source, model=model)
 
-    def run(self, source: Source):
+    def run(self, source: Source, get_time: bool = False):
         pos = self.start
 
         gm = GreauxModel(name=source.title,
@@ -150,11 +151,12 @@ class ParametricModification:
         sampler = emc.EnsembleSampler(self.nwalkers, self.ndim,
                                       self.log_probability, args=(source, op_SL_model))
 
-        # sampler.get_autocorr_time()
-
         sampler.run_mcmc(pos, self.nsteps, progress=True)
 
-        return op_SL_model, sampler.get_chain(discard=int(0.2 * self.nsteps), thin=25, flat=True)
+        if get_time:
+            print(sampler.get_autocorr_time())
+
+        return op_SL_model, sampler.get_chain(discard=int(0.2 * self.nsteps), thin=self.thin, flat=True)
 
 
 def save_as_pck(n, nwalkers, nsteps, data, mode, folder: str = None):
